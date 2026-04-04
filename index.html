@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>COMIC CENTER - 만화 공유 플랫폼</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;500;700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="app">
+        <!-- 배경 장식 요소들 -->
+        <div class="bg-shape shape1"></div>
+        <div class="bg-shape shape2"></div>
+        
+        <!-- 메인 컨텐츠 영역 -->
+        <main class="hero-section">
+            <div class="hero-content">
+                <div class="badge">
+                    <span class="icon">📖</span> <span class="text">HELLO</span>
+                </div>
+                <h1 class="title">
+                    WELCOME<br>
+                    TO<br>
+                    <span class="highlight">COMIC</span><br>
+                    CENTER
+                </h1>
+                <p class="subtitle">
+                    Your space to <strong>create</strong>, share, and<br>enjoy comics with friends.
+                </p>
+                
+                <button id="start-btn" class="start-btn">
+                    START <span class="arrow">➔</span>
+                </button>
+            </div>
+            
+            <div class="footer-icons">
+                <div class="icon-item">
+                    <span class="icon">🖌️</span>
+                    <span class="label">INK</span>
+                </div>
+                <div class="dot">•</div>
+                <div class="icon-item">
+                    <span class="icon">👥</span>
+                    <span class="label">SHARE</span>
+                </div>
+                <div class="dot">•</div>
+                <div class="icon-item">
+                    <span class="icon">🎉</span>
+                    <span class="label">FUN</span>
+                </div>
+            </div>
+            <p class="footer-text">DESIGNED FOR THE KINETIC READER</p>
+        </main>
+
+        <!-- 피드 화면 -->
+        <div id="feed-screen" class="feed-screen hidden">
+            <div class="feed-header">
+                <span class="menu-icon">☰</span>
+                <span class="site-name">The Illustrated Edge</span>
+                <div class="feed-header-icons">
+                    <span class="header-avatar">🟡</span>
+                </div>
+            </div>
+
+            <div class="feed-body">
+                <!-- 스토리 -->
+                <div class="stories-row">
+                    <div class="story-item">
+                        <div class="story-avatar" style="background:#f4c542;">K</div>
+                        <span>Kevin</span>
+                    </div>
+                    <div class="story-item">
+                        <div class="story-avatar" style="background:#e07bbd;">A</div>
+                        <span>Alex</span>
+                    </div>
+                    <div class="story-item">
+                        <div class="story-avatar" style="background:#7bc8e0;">J</div>
+                        <span>Juno</span>
+                    </div>
+                    <div class="story-item">
+                        <div class="story-avatar" style="background:#a0e07b;">Sam</div>
+                        <span>Sam</span>
+                    </div>
+                    <div class="story-item">
+                        <div class="story-avatar" style="background:#e07b7b;">R</div>
+                        <span>Rita</span>
+                    </div>
+                </div>
+
+                <!-- 포스트 1 -->
+                <div class="feed-post">
+                    <div class="post-user">
+                        <div class="post-avatar" style="background:#6a0dad;">G</div>
+                        <div>
+                            <p class="post-username">@GloRich_</p>
+                            <p class="post-time">2h ago</p>
+                        </div>
+                    </div>
+                    <div class="post-image neon">
+                        <div class="post-image-inner">
+                            <p class="comic-label">🌆 NEON CITY</p>
+                            <p class="comic-scene">A lone figure walks through rain-soaked streets...</p>
+                        </div>
+                    </div>
+                    <p class="post-title">Neon Drift, Part 14</p>
+                    <p class="post-desc">@GloRich_ · Finally finished the staking in the rain scene! This chapter took me forever 😭✨</p>
+                    <div class="post-actions">
+                        <button class="action-btn">❤️ 284</button>
+                        <button class="action-btn">💬 36</button>
+                        <button class="action-btn">↗ Share</button>
+                    </div>
+                </div>
+
+                <!-- 포스트 2 -->
+                <div class="feed-post">
+                    <div class="post-user">
+                        <div class="post-avatar" style="background:#e07b7b;">J</div>
+                        <div>
+                            <p class="post-username">@jen_borden</p>
+                            <p class="post-time">5h ago</p>
+                        </div>
+                    </div>
+                    <div class="post-image dragon">
+                        <div class="post-image-inner">
+                            <p class="comic-label">🐉 DRAGONSTAR</p>
+                            <p class="comic-scene">The dragon soars above the golden plains!</p>
+                        </div>
+                    </div>
+                    <p class="post-title">DragonStar</p>
+                    <p class="post-desc">@jen_borden · A dragon bright is a dragon right — new episode drops this Friday 🔥</p>
+                    <div class="post-actions">
+                        <button class="action-btn">❤️ 512</button>
+                        <button class="action-btn">💬 91</button>
+                        <button class="action-btn">↗ Share</button>
+                    </div>
+                </div>
+
+                <!-- 배너 -->
+                <div class="feed-banner">
+                    <p class="banner-label">🏆 COMMUNITY HIGHLIGHT</p>
+                    <p class="banner-title">Summer Jam Winners</p>
+                    <p class="banner-sub">See the top comics from this season's event →</p>
+                </div>
+            </div>
+
+            <nav class="bottom-nav" data-screen="feed">
+                <div class="nav-item active" data-target="feed">📰<span>FEED</span></div>
+                <div class="nav-item" data-target="upload">⬆<span>UPLOAD</span></div>
+                <div class="nav-item" data-target="shop">🛒<span>SHOP</span></div>
+                <div class="nav-item" data-target="profile">👤<span>PROFILE</span></div>
+            </nav>
+        </div>
+
+        <!-- 업로드 화면 -->
+        <div id="upload-screen" class="upload-screen hidden">
+            <div class="upload-header">
+                <span class="menu-icon">☰</span>
+                <span class="site-name">The Illustrated Edge</span>
+                <span class="heart-count">120 ❤️</span>
+            </div>
+
+            <div class="upload-body">
+                <p class="breadcrumb">CREATOR STUDIO / NEW PROJECT</p>
+                <h2 class="upload-title">Bring your world<br>to life.</h2>
+
+                <div class="drop-zone" id="drop-zone">
+                    <div class="drop-icon">🖼️</div>
+                    <p class="drop-main">Drop or Choose</p>
+                    <p class="drop-sub">comic panels (Max 50MB, JPG/PNG)</p>
+                    <input type="file" id="panel-input" accept=".jpg,.jpeg,.png" multiple hidden>
+                </div>
+
+                <div class="thumbnail-strip">
+                    <div class="thumb-placeholder"></div>
+                    <div class="thumb-placeholder"></div>
+                    <div class="thumb-placeholder"></div>
+                    <button class="thumb-add" id="thumb-add-btn">+</button>
+                </div>
+
+                <div class="upload-field">
+                    <label class="field-label">COMIC TITLE</label>
+                    <input type="text" class="field-input" placeholder="Enter your saga name...">
+                </div>
+
+                <div class="upload-field">
+                    <label class="field-label">SHORT DESCRIPTION</label>
+                    <textarea class="field-textarea" id="desc-area" maxlength="240" placeholder="What is this story about?"></textarea>
+                    <span class="char-count" id="char-count">0 / 240 characters</span>
+                </div>
+
+                <div class="toggle-row">
+                    <div class="toggle-info">
+                        <span class="toggle-icon">👁️</span>
+                        <div>
+                            <p class="toggle-title">Public Post</p>
+                            <p class="toggle-sub">Visible to all students</p>
+                        </div>
+                    </div>
+                    <label class="toggle-switch">
+                        <input type="checkbox" checked>
+                        <span class="slider"></span>
+                    </label>
+                </div>
+
+                <div class="cover-art-box">
+                    <div class="cover-thumb">🖼️</div>
+                    <div>
+                        <p class="cover-title">Pick a frame for your<br>gallery thumbnail</p>
+                        <a href="#" class="select-frame">Select Frame</a>
+                    </div>
+                </div>
+
+                <button class="upload-btn">⬆ Upload Comic</button>
+                <p class="legal-text">BY UPLOADING, YOU AGREE TO THE<br><a href="#">CREATIVE COMMUNITY GUIDELINES</a></p>
+            </div>
+
+            <nav class="bottom-nav" data-screen="upload">
+                <div class="nav-item" data-target="feed">📰<span>FEED</span></div>
+                <div class="nav-item active" data-target="upload">⬆<span>UPLOAD</span></div>
+                <div class="nav-item" data-target="shop">🛒<span>SHOP</span></div>
+                <div class="nav-item" data-target="profile">👤<span>PROFILE</span></div>
+            </nav>
+        </div>
+
+        <!-- 하트 상점 화면 -->
+        <div id="shop-screen" class="shop-screen hidden">
+            <div class="shop-header">
+                <span class="menu-icon">☰</span>
+                <span class="site-name">The Illustrated Edge</span>
+                <span class="heart-count" id="shop-heart-display">108 ❤️</span>
+            </div>
+
+            <div class="shop-body">
+                <!-- 잔액 배너 -->
+                <div class="shop-banner">
+                    <p class="shop-banner-sub">Your balance</p>
+                    <p class="shop-banner-hearts" id="balance-display">108 ❤️</p>
+                    <p class="shop-banner-title">Level up your<br>storytelling</p>
+                    <button class="get-more-btn">GET MORE ➔</button>
+                </div>
+
+                <p class="shop-section-label">ITEMS FOR YOU</p>
+
+                <!-- 상품 그리드 -->
+                <div class="shop-grid">
+                    <div class="shop-card" data-price="25" data-name="Character Pack">
+                        <div class="shop-card-img avatars">
+                            <span>👤</span><span>👤</span><span>👤</span>
+                        </div>
+                        <p class="shop-card-name">Character Pack</p>
+                        <button class="buy-btn">❤️ 25</button>
+                    </div>
+                    <div class="shop-card" data-price="45" data-name="Golden Frame">
+                        <div class="shop-card-img golden"></div>
+                        <p class="shop-card-name">Golden Frame</p>
+                        <button class="buy-btn">❤️ 45</button>
+                    </div>
+                    <div class="shop-card" data-price="30" data-name="Dark Theme">
+                        <div class="shop-card-img dark-theme"></div>
+                        <p class="shop-card-name">Dark Theme</p>
+                        <button class="buy-btn">❤️ 30</button>
+                    </div>
+                    <div class="shop-card" data-price="60" data-name="Galaxy Pack">
+                        <div class="shop-card-img galaxy"></div>
+                        <p class="shop-card-name">Galaxy Pack</p>
+                        <button class="buy-btn">❤️ 60</button>
+                    </div>
+                </div>
+
+                <!-- 피처드 아이템 -->
+                <div class="shop-featured" data-price="120" data-name="Masterclass: Visual Storytelling">
+                    <div class="featured-text">
+                        <p class="featured-tag">⭐ FEATURED</p>
+                        <p class="featured-title">Masterclass:<br>Visual Storytelling</p>
+                        <button class="buy-btn featured-buy">❤️ 120</button>
+                    </div>
+                    <div class="featured-img">🎬</div>
+                </div>
+            </div>
+
+            <nav class="bottom-nav" data-screen="shop">
+                <div class="nav-item" data-target="feed">📰<span>FEED</span></div>
+                <div class="nav-item" data-target="upload">⬆<span>UPLOAD</span></div>
+                <div class="nav-item active" data-target="shop">🛒<span>SHOP</span></div>
+                <div class="nav-item" data-target="profile">👤<span>PROFILE</span></div>
+            </nav>
+        </div>
+
+        <!-- 프로필 화면 -->
+        <div id="profile-screen" class="profile-screen hidden">
+            <div class="profile-top-bar">
+                <button class="profile-back" id="profile-back">←</button>
+                <span class="profile-top-title">Profile Customization</span>
+                <span></span>
+            </div>
+
+            <!-- 아바타 미리보기 -->
+            <div class="profile-avatar-wrap">
+                <div class="profile-avatar-ring" id="avatar-ring">
+                    <div class="profile-avatar-inner" id="avatar-inner">
+                        <span class="avatar-emoji" id="avatar-emoji">🧑</span>
+                    </div>
+                    <div class="avatar-badge" id="avatar-badge">⭐</div>
+                </div>
+                <p class="profile-name">Kevin</p>
+                <p class="profile-hearts" id="profile-heart-display">108 ❤️</p>
+            </div>
+
+            <div class="profile-body">
+                <!-- 클로젯 -->
+                <div class="closet-header">
+                    <span class="closet-title">My Items <span class="closet-sub">(Closet)</span></span>
+                    <button class="shop-more-btn" id="go-shop-from-profile">Shop More →</button>
+                </div>
+                <div class="closet-empty" id="closet-empty">No items yet. Buy some from the Shop!</div>
+                <div class="closet-list" id="closet-list"></div>
+
+                <!-- SHAPES -->
+                <p class="pf-section-label">SHAPES</p>
+                <div class="pf-option-row" id="shape-row">
+                    <div class="pf-option selected" data-group="shape" data-value="circle" data-free="true">
+                        <div class="opt-preview shape-circle"></div>
+                    </div>
+                    <div class="pf-option" data-group="shape" data-value="rounded" data-free="true">
+                        <div class="opt-preview shape-rounded"></div>
+                    </div>
+                    <div class="pf-option locked" data-group="shape" data-value="golden" data-item="Golden Frame">
+                        <div class="opt-preview shape-golden">🔒</div>
+                    </div>
+                    <div class="pf-option locked" data-group="shape" data-value="hex" data-item="Galaxy Pack">
+                        <div class="opt-preview shape-hex">🔒</div>
+                    </div>
+                </div>
+
+                <!-- BADGES -->
+                <p class="pf-section-label">BADGES</p>
+                <div class="pf-option-row" id="badge-row">
+                    <div class="pf-option selected" data-group="badge" data-value="star" data-free="true">
+                        <span class="opt-emoji">⭐</span>
+                    </div>
+                    <div class="pf-option" data-group="badge" data-value="fire" data-free="true">
+                        <span class="opt-emoji">🔥</span>
+                    </div>
+                    <div class="pf-option locked" data-group="badge" data-value="shield" data-item="Character Pack">
+                        <span class="opt-emoji">🔒</span>
+                    </div>
+                    <div class="pf-option locked" data-group="badge" data-value="crown" data-item="Masterclass: Visual Storytelling">
+                        <span class="opt-emoji">🔒</span>
+                    </div>
+                </div>
+
+                <!-- EFFECTS -->
+                <p class="pf-section-label">EFFECTS</p>
+                <div class="pf-option-row" id="effect-row">
+                    <div class="pf-option selected" data-group="effect" data-value="none" data-free="true">
+                        <span class="opt-emoji">✨</span>
+                    </div>
+                    <div class="pf-option locked" data-group="effect" data-value="dark" data-item="Dark Theme">
+                        <span class="opt-emoji">🔒</span>
+                    </div>
+                    <div class="pf-option locked" data-group="effect" data-value="galaxy" data-item="Galaxy Pack">
+                        <span class="opt-emoji">🔒</span>
+                    </div>
+                    <div class="pf-option locked" data-group="effect" data-value="gold" data-item="Golden Frame">
+                        <span class="opt-emoji">🔒</span>
+                    </div>
+                </div>
+
+                <button class="apply-style-btn" id="apply-style-btn">✓ Apply Style</button>
+
+                <button class="logout-btn" id="logout-btn">⇤ Logout</button>
+                <button class="delete-btn">🗑 Delete Account</button>
+            </div>
+
+            <nav class="bottom-nav" data-screen="profile">
+                <div class="nav-item" data-target="feed">📰<span>FEED</span></div>
+                <div class="nav-item" data-target="upload">⬆<span>UPLOAD</span></div>
+                <div class="nav-item" data-target="shop">🛒<span>SHOP</span></div>
+                <div class="nav-item active" data-target="profile">👤<span>PROFILE</span></div>
+            </nav>
+        </div>
+
+        <!-- 로그인 모달 -->
+        <div id="login-modal" class="modal-overlay hidden">
+            <div class="modal-container">
+                <button id="close-modal" class="close-btn">&times;</button>
+                <h2>Login</h2>
+                <p>Sign in to your account to get started.</p>
+                <form id="login-form">
+                    <div class="input-group">
+                        <label for="email">ID</label>
+                        <input type="text" id="email" placeholder="Enter your ID" required>
+                    </div>
+                    <div class="input-group">
+                        <label for="password">Password</label>
+                        <input type="password" id="password" placeholder="••••••••" required>
+                    </div>
+                    <button type="submit" class="submit-btn" style="color: white; background: #222;">Login</button>
+                </form>
+                <p class="signup-prompt">Don't have an account? <a href="#" id="go-signup">Sign up</a></p>
+            </div>
+        </div>
+    </div>
+    
+    <script src="main.js"></script>
+</body>
+</html>
