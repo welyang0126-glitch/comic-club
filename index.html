@@ -61,38 +61,38 @@
                 <span class="menu-icon">☰</span>
                 <span class="site-name">The Illustrated Edge</span>
                 <div class="feed-header-icons">
-                    <span class="header-avatar">🟡</span>
+                    <button class="header-avatar-btn" id="feed-avatar-btn" aria-label="My Profile">K</button>
                 </div>
             </div>
 
             <div class="feed-body">
                 <!-- 스토리 -->
                 <div class="stories-row">
-                    <div class="story-item">
+                    <div class="story-item" data-user-id="kevin">
                         <div class="story-avatar" style="background:#f4c542;">K</div>
                         <span>Kevin</span>
                     </div>
-                    <div class="story-item">
+                    <div class="story-item" data-user-id="alex">
                         <div class="story-avatar" style="background:#e07bbd;">A</div>
                         <span>Alex</span>
                     </div>
-                    <div class="story-item">
+                    <div class="story-item" data-user-id="juno">
                         <div class="story-avatar" style="background:#7bc8e0;">J</div>
                         <span>Juno</span>
                     </div>
-                    <div class="story-item">
-                        <div class="story-avatar" style="background:#a0e07b;">Sam</div>
+                    <div class="story-item" data-user-id="sam">
+                        <div class="story-avatar" style="background:#a0e07b;">S</div>
                         <span>Sam</span>
                     </div>
-                    <div class="story-item">
+                    <div class="story-item" data-user-id="rita">
                         <div class="story-avatar" style="background:#e07b7b;">R</div>
                         <span>Rita</span>
                     </div>
                 </div>
 
                 <!-- 포스트 1 -->
-                <div class="feed-post">
-                    <div class="post-user">
+                <div class="feed-post" data-post-id="post-1">
+                    <div class="post-user" data-user-id="glorich" style="cursor:pointer;">
                         <div class="post-avatar" style="background:#6a0dad;">G</div>
                         <div>
                             <p class="post-username">@GloRich_</p>
@@ -108,15 +108,26 @@
                     <p class="post-title">Neon Drift, Part 14</p>
                     <p class="post-desc">@GloRich_ · Finally finished the staking in the rain scene! This chapter took me forever 😭✨</p>
                     <div class="post-actions">
-                        <button class="action-btn">❤️ 284</button>
-                        <button class="action-btn">💬 36</button>
+                        <button class="action-btn like-btn" data-post-id="post-1">
+                            <span class="like-icon">🤍</span><span class="like-count">284</span>
+                        </button>
+                        <button class="action-btn comment-toggle-btn" data-post-id="post-1">
+                            💬 <span class="comment-count">36</span>
+                        </button>
                         <button class="action-btn">↗ Share</button>
+                    </div>
+                    <div class="comment-section" id="comments-post-1">
+                        <div class="comment-list" id="comment-list-post-1"></div>
+                        <div class="comment-input-row">
+                            <input class="comment-input" type="text" placeholder="Add a comment..." data-post-id="post-1">
+                            <button class="comment-submit" data-post-id="post-1">Post</button>
+                        </div>
                     </div>
                 </div>
 
                 <!-- 포스트 2 -->
-                <div class="feed-post">
-                    <div class="post-user">
+                <div class="feed-post" data-post-id="post-2">
+                    <div class="post-user" data-user-id="jen_borden" style="cursor:pointer;">
                         <div class="post-avatar" style="background:#e07b7b;">J</div>
                         <div>
                             <p class="post-username">@jen_borden</p>
@@ -132,9 +143,20 @@
                     <p class="post-title">DragonStar</p>
                     <p class="post-desc">@jen_borden · A dragon bright is a dragon right — new episode drops this Friday 🔥</p>
                     <div class="post-actions">
-                        <button class="action-btn">❤️ 512</button>
-                        <button class="action-btn">💬 91</button>
+                        <button class="action-btn like-btn" data-post-id="post-2">
+                            <span class="like-icon">🤍</span><span class="like-count">512</span>
+                        </button>
+                        <button class="action-btn comment-toggle-btn" data-post-id="post-2">
+                            💬 <span class="comment-count">91</span>
+                        </button>
                         <button class="action-btn">↗ Share</button>
+                    </div>
+                    <div class="comment-section" id="comments-post-2">
+                        <div class="comment-list" id="comment-list-post-2"></div>
+                        <div class="comment-input-row">
+                            <input class="comment-input" type="text" placeholder="Add a comment..." data-post-id="post-2">
+                            <button class="comment-submit" data-post-id="post-2">Post</button>
+                        </div>
                     </div>
                 </div>
 
@@ -159,7 +181,10 @@
             <div class="upload-header">
                 <span class="menu-icon">☰</span>
                 <span class="site-name">The Illustrated Edge</span>
-                <span class="heart-count">120 ❤️</span>
+                <div style="display:flex;align-items:center;gap:0.6rem;">
+                    <span class="heart-count" id="upload-heart-count">108 ❤️</span>
+                    <button class="header-avatar-btn" id="upload-avatar-btn" aria-label="My Profile">K</button>
+                </div>
             </div>
 
             <div class="upload-body">
@@ -230,7 +255,10 @@
             <div class="shop-header">
                 <span class="menu-icon">☰</span>
                 <span class="site-name">The Illustrated Edge</span>
-                <span class="heart-count" id="shop-heart-display">108 ❤️</span>
+                <div style="display:flex;align-items:center;gap:0.6rem;">
+                    <span class="heart-count" id="shop-heart-display">108 ❤️</span>
+                    <button class="header-avatar-btn" id="shop-avatar-btn" aria-label="My Profile">K</button>
+                </div>
             </div>
 
             <div class="shop-body">
@@ -383,24 +411,120 @@
             </nav>
         </div>
 
+        <!-- 유저 프로필 화면 (작가별 개인 피드) -->
+        <div id="user-profile-screen" class="user-profile-screen hidden">
+            <div class="up-topbar">
+                <button id="up-back-btn" class="up-back-btn">← Back to Feed</button>
+                <span class="up-topbar-title">Creator Profile</span>
+                <span></span>
+            </div>
+            <div class="up-body">
+                <div class="up-profile-card">
+                    <div class="up-avatar-lg" id="up-avatar-lg"></div>
+                    <div class="up-info">
+                        <p class="up-name" id="up-name"></p>
+                        <p class="up-handle" id="up-handle"></p>
+                        <p class="up-bio" id="up-bio"></p>
+                        <div class="up-stats">
+                            <span id="up-followers"></span>
+                            <span class="up-stat-sep">·</span>
+                            <span id="up-postcount"></span>
+                        </div>
+                    </div>
+                </div>
+                <p class="up-section-label">COMICS</p>
+                <div id="up-posts-list"></div>
+            </div>
+        </div>
+
+        <!-- 내 프로필 모달 -->
+        <div id="my-profile-modal" class="modal-overlay hidden" role="dialog" aria-modal="true">
+            <div class="my-profile-modal-card">
+                <button class="mpm-close" id="mpm-close" aria-label="Close">&times;</button>
+
+                <!-- 프로필 정보 -->
+                <div class="mpm-profile">
+                    <div class="mpm-avatar" id="mpm-avatar">K</div>
+                    <p class="mpm-name" id="mpm-name">Kevin</p>
+                    <p class="mpm-handle" id="mpm-handle">@Kevin</p>
+                </div>
+
+                <div class="mpm-divider"></div>
+
+                <!-- 통계 -->
+                <div class="mpm-stats">
+                    <div class="mpm-stat">
+                        <span class="mpm-stat-num" id="mpm-hearts">108</span>
+                        <span class="mpm-stat-label">Hearts</span>
+                    </div>
+                    <div class="mpm-stat-sep"></div>
+                    <div class="mpm-stat">
+                        <span class="mpm-stat-num" id="mpm-items">0</span>
+                        <span class="mpm-stat-label">Items</span>
+                    </div>
+                </div>
+
+                <div class="mpm-divider"></div>
+
+                <!-- 로그아웃 -->
+                <button class="mpm-logout-btn" id="mpm-logout-btn">
+                    ⇤ Log out
+                </button>
+            </div>
+        </div>
+
         <!-- 로그인 모달 -->
         <div id="login-modal" class="modal-overlay hidden">
             <div class="modal-container">
                 <button id="close-modal" class="close-btn">&times;</button>
-                <h2>Login</h2>
-                <p>Sign in to your account to get started.</p>
-                <form id="login-form">
-                    <div class="input-group">
-                        <label for="email">ID</label>
-                        <input type="text" id="email" placeholder="Enter your ID" required>
-                    </div>
-                    <div class="input-group">
-                        <label for="password">Password</label>
-                        <input type="password" id="password" placeholder="••••••••" required>
-                    </div>
-                    <button type="submit" class="submit-btn" style="color: white; background: #222;">Login</button>
-                </form>
-                <p class="signup-prompt">Don't have an account? <a href="#" id="go-signup">Sign up</a></p>
+                
+                <!-- 로그인 컨텐츠 -->
+                <div id="login-section">
+                    <h2>Login</h2>
+                    <p>Sign in to your account to get started.</p>
+                    <form id="login-form">
+                        <div class="input-group">
+                            <label for="email">ID</label>
+                            <input type="text" id="email" placeholder="Enter your ID" required>
+                        </div>
+                        <div class="input-group">
+                            <label for="password">Password</label>
+                            <input type="password" id="password" placeholder="••••••••" required>
+                        </div>
+                        <button type="submit" class="submit-btn" style="color: white; background: #222;">Login</button>
+                    </form>
+                    <p class="signup-prompt">Don't have an account? <a href="#" id="go-signup">Sign up</a></p>
+                </div>
+
+                <!-- 회원가입 컨텐츠 -->
+                <div id="signup-section" class="auth-hidden">
+                    <h2>Sign up</h2>
+                    <p>Create an account to join the Comic Club.</p>
+                    <form id="signup-form">
+                        <div class="input-group">
+                            <label for="signup-id">ID</label>
+                            <div style="display: flex; gap: 8px;">
+                                <input type="text" id="signup-id" placeholder="Enter your ID" required style="flex: 1;">
+                                <button type="button" id="check-id-btn" class="secondary-btn">Check</button>
+                            </div>
+                            <p id="id-check-msg" class="check-msg"></p>
+                        </div>
+                        <div class="input-group">
+                            <label for="signup-name">Name</label>
+                            <input type="text" id="signup-name" placeholder="Enter your name" required>
+                        </div>
+                        <div class="input-group">
+                            <label for="signup-pwd">Password</label>
+                            <input type="password" id="signup-pwd" placeholder="••••••••" required>
+                        </div>
+                        <div class="input-group" style="margin-bottom: 2rem;">
+                            <label for="signup-pwd-confirm">Confirm Password</label>
+                            <input type="password" id="signup-pwd-confirm" placeholder="••••••••" required>
+                        </div>
+                        <button type="submit" class="submit-btn" style="color: white; background: #222;">Create Account</button>
+                    </form>
+                    <p class="signup-prompt">Already have an account? <a href="#" id="go-login">Login</a></p>
+                </div>
             </div>
         </div>
     </div>

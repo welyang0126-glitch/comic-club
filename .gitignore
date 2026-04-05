@@ -1,0 +1,10 @@
+# 참고용 디자인 이미지 (코드에서 미사용)
+*.png
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/

@@ -301,6 +301,36 @@ body {
     text-decoration: underline;
 }
 
+.auth-hidden {
+    display: none !important;
+}
+
+.secondary-btn {
+    padding: 0 1rem;
+    background: #e0e0e0;
+    color: #333;
+    border: none;
+    border-radius: 10px;
+    font-weight: 700;
+    font-size: 0.9rem;
+    cursor: pointer;
+    font-family: inherit;
+    transition: background 0.2s;
+}
+
+.secondary-btn:hover {
+    background: #d0d0d0;
+}
+
+.check-msg {
+    font-size: 0.8rem;
+    margin-top: 0.4rem;
+    font-weight: 500;
+}
+
+.check-msg.success { color: #27ae60; }
+.check-msg.error { color: #e74c3c; }
+
 /* ===== FEED SCREEN ===== */
 .feed-screen {
     position: fixed;
@@ -341,6 +371,164 @@ body {
     align-items: center;
     justify-content: center;
     font-size: 1rem;
+}
+
+/* 헤더 아바타 버튼 (클릭 가능) */
+.header-avatar-btn {
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    background: #ffcc00;
+    border: 2.5px solid #e6b800;
+    color: #111;
+    font-family: 'Outfit', sans-serif;
+    font-size: 0.9rem;
+    font-weight: 900;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.15s, box-shadow 0.15s;
+    flex-shrink: 0;
+}
+
+.header-avatar-btn:hover {
+    transform: scale(1.1);
+    box-shadow: 0 0 0 3px #ffcc0055;
+}
+
+/* ── 내 프로필 모달 ─────────────────────────────────── */
+/* 화면들이 z-index:200이므로 반드시 그 위에 있어야 함 */
+#my-profile-modal {
+    z-index: 300;
+}
+
+.my-profile-modal-card {
+    background: #fff;
+    border-radius: 24px;
+    width: 90%;
+    max-width: 340px;
+    padding: 2rem 1.8rem 1.6rem;
+    position: relative;
+    box-shadow: 0 25px 60px rgba(0,0,0,0.2);
+    animation: fadeInUp 0.25s ease;
+}
+
+.mpm-close {
+    position: absolute;
+    top: 1.2rem;
+    right: 1.2rem;
+    background: #f0f0f0;
+    border: none;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    font-size: 1.1rem;
+    cursor: pointer;
+    color: #555;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.2s;
+}
+
+.mpm-close:hover { background: #e0e0e0; }
+
+.mpm-profile {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding-bottom: 1.2rem;
+}
+
+.mpm-avatar {
+    width: 72px;
+    height: 72px;
+    border-radius: 50%;
+    background: #ffcc00;
+    border: 4px solid #e6b800;
+    color: #111;
+    font-family: 'Outfit', sans-serif;
+    font-size: 1.8rem;
+    font-weight: 900;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 0.9rem;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+.mpm-name {
+    font-size: 1.3rem;
+    font-weight: 900;
+    color: #111;
+    margin-bottom: 0.2rem;
+}
+
+.mpm-handle {
+    font-size: 0.82rem;
+    color: #aaa;
+    font-weight: 500;
+}
+
+.mpm-divider {
+    height: 1px;
+    background: #f0f0f0;
+    margin: 0.2rem 0;
+}
+
+.mpm-stats {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 2rem;
+    padding: 1rem 0;
+}
+
+.mpm-stat {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.2rem;
+}
+
+.mpm-stat-num {
+    font-size: 1.3rem;
+    font-weight: 900;
+    color: #111;
+}
+
+.mpm-stat-label {
+    font-size: 0.7rem;
+    color: #aaa;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+}
+
+.mpm-stat-sep {
+    width: 1px;
+    height: 36px;
+    background: #eee;
+}
+
+.mpm-logout-btn {
+    width: 100%;
+    margin-top: 1rem;
+    padding: 0.85rem;
+    background: #fff5f5;
+    color: #e74c3c;
+    border: 1.5px solid #ffd5d5;
+    border-radius: 12px;
+    font-family: 'Outfit', sans-serif;
+    font-size: 0.95rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 0.2s, border-color 0.2s;
+}
+
+.mpm-logout-btn:hover {
+    background: #ffe0e0;
+    border-color: #e74c3c;
 }
 
 .feed-body {
@@ -497,6 +685,128 @@ body {
     background: #ffe066;
 }
 
+/* Like button */
+.like-btn { display: inline-flex; align-items: center; gap: 0.3rem; transition: transform 0.15s; }
+.like-btn.liked { color: #e74c3c; background: #ffeaea; border-color: #f5c6c6; }
+.like-btn.pop { animation: likePop 0.3s cubic-bezier(0.36, 0.07, 0.19, 0.97); }
+
+@keyframes likePop {
+    0%   { transform: scale(1); }
+    40%  { transform: scale(1.35); }
+    70%  { transform: scale(0.9); }
+    100% { transform: scale(1); }
+}
+
+/* Comment section */
+.comment-section {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.35s ease;
+    border-top: 0px solid #f0f0f0;
+}
+
+.comment-section.open {
+    max-height: 600px;
+    border-top: 1px solid #f0f0f0;
+}
+
+.comment-list {
+    max-height: 220px;
+    overflow-y: auto;
+    padding: 0.6rem 1rem 0;
+}
+
+.comment-list::-webkit-scrollbar { width: 4px; }
+.comment-list::-webkit-scrollbar-thumb { background: #ddd; border-radius: 4px; }
+
+.comment-item {
+    display: flex;
+    gap: 0.6rem;
+    padding: 0.55rem 0;
+    border-bottom: 1px solid #f5f5f5;
+    animation: fadeInUp 0.2s ease;
+}
+
+.comment-item:last-child { border-bottom: none; }
+
+.comment-avatar {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: #6a0dad;
+    color: #fff;
+    font-size: 0.7rem;
+    font-weight: 900;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.comment-body { flex: 1; }
+
+.comment-author {
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: #222;
+    margin-bottom: 0.1rem;
+}
+
+.comment-text {
+    font-size: 0.82rem;
+    color: #444;
+    line-height: 1.4;
+    word-break: break-word;
+}
+
+.comment-time {
+    font-size: 0.65rem;
+    color: #bbb;
+    margin-top: 0.2rem;
+}
+
+.comment-empty {
+    font-size: 0.78rem;
+    color: #bbb;
+    text-align: center;
+    padding: 0.8rem 0;
+}
+
+.comment-input-row {
+    display: flex;
+    gap: 0.5rem;
+    padding: 0.7rem 1rem;
+    border-top: 1px solid #f0f0f0;
+}
+
+.comment-input {
+    flex: 1;
+    padding: 0.5rem 0.8rem;
+    border: 1.5px solid #e0e0e0;
+    border-radius: 20px;
+    font-family: 'Outfit', sans-serif;
+    font-size: 0.82rem;
+    outline: none;
+    transition: border-color 0.2s;
+}
+
+.comment-input:focus { border-color: #ffcc00; }
+
+.comment-submit {
+    background: #ffcc00;
+    border: none;
+    border-radius: 20px;
+    padding: 0.5rem 1rem;
+    font-family: 'Outfit', sans-serif;
+    font-size: 0.82rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 0.2s;
+    flex-shrink: 0;
+}
+
+.comment-submit:hover { background: #e6b800; }
+
 /* Banner */
 .feed-banner {
     margin: 0.8rem 1rem 1.2rem;
@@ -524,6 +834,141 @@ body {
     font-size: 0.78rem;
     color: #aaa;
 }
+
+/* ===== USER PROFILE SCREEN (작가별 개인 피드) ===== */
+.user-profile-screen {
+    position: fixed;
+    inset: 0;
+    background: #f0f0ea;
+    display: flex;
+    flex-direction: column;
+    z-index: 200;
+    font-family: 'Outfit', sans-serif;
+}
+
+.user-profile-screen.hidden { display: none; }
+
+.up-topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1rem 1.2rem;
+    background: #fff;
+    border-bottom: 1px solid #eee;
+}
+
+.up-back-btn {
+    background: none;
+    border: none;
+    font-family: 'Outfit', sans-serif;
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: #333;
+    cursor: pointer;
+    padding: 0.3rem 0;
+    transition: color 0.2s;
+}
+
+.up-back-btn:hover { color: #000; }
+
+.up-topbar-title {
+    font-weight: 900;
+    font-size: 1rem;
+    color: #111;
+}
+
+.up-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 1rem;
+}
+
+/* 프로필 카드 */
+.up-profile-card {
+    background: #fff;
+    border-radius: 18px;
+    padding: 1.3rem;
+    display: flex;
+    gap: 1rem;
+    align-items: flex-start;
+    margin-bottom: 1.2rem;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+}
+
+.up-avatar-lg {
+    width: 68px;
+    height: 68px;
+    border-radius: 50%;
+    border: 3px solid #ffcc00;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.6rem;
+    font-weight: 900;
+    color: #fff;
+    flex-shrink: 0;
+}
+
+.up-info { flex: 1; }
+
+.up-name {
+    font-weight: 900;
+    font-size: 1.1rem;
+    color: #111;
+    margin-bottom: 0.1rem;
+}
+
+.up-handle {
+    font-size: 0.78rem;
+    color: #888;
+    margin-bottom: 0.4rem;
+}
+
+.up-bio {
+    font-size: 0.82rem;
+    color: #444;
+    line-height: 1.4;
+    margin-bottom: 0.6rem;
+}
+
+.up-stats {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: #555;
+}
+
+.up-stat-sep { color: #ccc; }
+
+.up-section-label {
+    font-size: 0.65rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    color: #999;
+    margin-bottom: 0.8rem;
+}
+
+/* 유저 포스트 카드 — 기존 feed-post 스타일 재사용 */
+#up-posts-list .feed-post { margin: 0 0 0.8rem; }
+
+.up-empty {
+    background: #fff;
+    border-radius: 16px;
+    padding: 2rem;
+    text-align: center;
+    color: #aaa;
+    font-size: 0.85rem;
+}
+
+/* 스토리 아바타 클릭 가능 */
+.story-item {
+    cursor: pointer;
+    transition: opacity 0.15s, transform 0.15s;
+}
+
+.story-item:hover { opacity: 0.8; transform: translateY(-2px); }
 
 /* ===== PROFILE SCREEN ===== */
 .profile-screen {
