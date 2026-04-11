@@ -573,6 +573,20 @@ document.addEventListener('DOMContentLoaded', () => {
         if (e.target.closest('#apply-style-btn')) {
             appliedStyle = { ...pendingStyle };
             applyAvatarStyle(appliedStyle);
+            
+            const color = '#ffcc00';
+            updateAllAvatarBtns('', color);
+
+            // 로그인 상태라면 Railway 백엔드로 저장
+            if (loggedInUser !== 'Guest') {
+                const userKey = loggedInUser.toLowerCase();
+                fetch(`/api/users/${userKey}/update`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ avatar: appliedStyle })
+                }).catch(err => console.error(err));
+            }
+
             const btn = document.getElementById('apply-style-btn');
             btn.textContent = '✅ Applied!';
             setTimeout(() => { btn.textContent = '✓ Apply Style'; }, 1500);
@@ -619,13 +633,13 @@ document.addEventListener('DOMContentLoaded', () => {
             const text = input.value.trim();
             if (!text) return;
 
-            addComment(postId, loggedInUser || 'Guest', text);
             input.value = '';
-            renderCommentList(postId);
-
-            // 댓글 수 업데이트
-            const toggleBtn = document.querySelector(`.comment-toggle-btn[data-post-id="${postId}"]`);
-            if (toggleBtn) toggleBtn.querySelector('.comment-count').textContent = getAllComments(postId).length;
+            addComment(postId, loggedInUser || 'Guest', text).then(() => {
+                renderCommentList(postId);
+                // 댓글 수 업데이트
+                const toggleBtn = document.querySelector(`.comment-toggle-btn[data-post-id="${postId}"]`);
+                if (toggleBtn) toggleBtn.querySelector('.comment-count').textContent = getAllComments(postId).length;
+            });
         }
 
         // ── 공유 버튼 클릭 ───────────────────────────────
@@ -810,6 +824,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 const color = data.user.color || '#ffcc00';
                 const avatarEmojiEl = document.getElementById('avatar-emoji');
                 if (avatarEmojiEl) avatarEmojiEl.textContent = '';
+                
+                if (data.user.avatar) {
+                    appliedStyle = { ...appliedStyle, ...data.user.avatar };
+                    pendingStyle = { ...appliedStyle };
+                }
+                applyAvatarStyle(appliedStyle);
                 updateAllAvatarBtns(initial, color);
 
                 showScreen('upload');
