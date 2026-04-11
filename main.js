@@ -930,15 +930,19 @@ document.addEventListener('DOMContentLoaded', () => {
     const thumbnailStrip = document.querySelector('.thumbnail-strip');
     const thumbAddBtn = document.getElementById('thumb-add-btn');
 
+    let dragSrcIndex = null;
+
     const renderThumbnails = () => {
         // 기존 썸네일(미리보기, 플레이스홀더) 제거
         const existingThumbs = thumbnailStrip.querySelectorAll('.thumb-preview, .thumb-placeholder');
         existingThumbs.forEach(el => el.remove());
 
         // 업로드된 이미지 썸네일 새로 추가
-        uploadedImages.forEach((dataUrl) => {
+        uploadedImages.forEach((dataUrl, idx) => {
             const thumb = document.createElement('div');
             thumb.className = 'thumb-preview';
+            thumb.dataset.index = idx;
+            thumb.draggable = true;
             thumb.style.width = '56px';
             thumb.style.height = '56px';
             thumb.style.borderRadius = '8px';
@@ -946,8 +950,69 @@ document.addEventListener('DOMContentLoaded', () => {
             thumb.style.backgroundSize = 'cover';
             thumb.style.backgroundPosition = 'center';
             thumb.style.flexShrink = '0';
-            thumb.style.cursor = 'pointer';
-            
+            thumb.style.cursor = 'grab';
+            thumb.style.position = 'relative';
+            thumb.style.transition = 'transform 0.15s, opacity 0.15s, box-shadow 0.15s';
+            thumb.style.border = '2px solid transparent';
+
+            // 순번 표시
+            const badge = document.createElement('span');
+            badge.textContent = idx + 1;
+            badge.style.cssText = 'position:absolute;top:-6px;left:-6px;background:#ffcc00;color:#111;width:20px;height:20px;border-radius:50%;font-size:0.65rem;font-weight:900;display:flex;align-items:center;justify-content:center;box-shadow:0 1px 3px rgba(0,0,0,0.3);pointer-events:none;';
+            thumb.appendChild(badge);
+
+            // 삭제 버튼
+            const delBtn = document.createElement('span');
+            delBtn.textContent = '✕';
+            delBtn.style.cssText = 'position:absolute;top:-6px;right:-6px;background:#ff4444;color:#fff;width:18px;height:18px;border-radius:50%;font-size:0.6rem;font-weight:900;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 1px 3px rgba(0,0,0,0.3);opacity:0;transition:opacity 0.15s;';
+            thumb.appendChild(delBtn);
+            thumb.addEventListener('mouseenter', () => delBtn.style.opacity = '1');
+            thumb.addEventListener('mouseleave', () => delBtn.style.opacity = '0');
+            delBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                uploadedImages.splice(idx, 1);
+                uploadedFiles.splice(idx, 1);
+                renderThumbnails();
+            });
+
+            // 드래그 이벤트
+            thumb.addEventListener('dragstart', (e) => {
+                dragSrcIndex = idx;
+                thumb.style.opacity = '0.4';
+                thumb.style.boxShadow = '0 0 0 3px #ffcc00';
+                e.dataTransfer.effectAllowed = 'move';
+            });
+            thumb.addEventListener('dragend', () => {
+                thumb.style.opacity = '1';
+                thumb.style.boxShadow = 'none';
+                dragSrcIndex = null;
+                // 모든 보더 초기화
+                thumbnailStrip.querySelectorAll('.thumb-preview').forEach(t => t.style.border = '2px solid transparent');
+            });
+            thumb.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                e.dataTransfer.dropEffect = 'move';
+                thumb.style.border = '2px solid #ffcc00';
+            });
+            thumb.addEventListener('dragleave', () => {
+                thumb.style.border = '2px solid transparent';
+            });
+            thumb.addEventListener('drop', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                const targetIdx = idx;
+                if (dragSrcIndex === null || dragSrcIndex === targetIdx) return;
+
+                // 배열 순서 교환
+                const [movedImg] = uploadedImages.splice(dragSrcIndex, 1);
+                uploadedImages.splice(targetIdx, 0, movedImg);
+                const [movedFile] = uploadedFiles.splice(dragSrcIndex, 1);
+                uploadedFiles.splice(targetIdx, 0, movedFile);
+
+                dragSrcIndex = null;
+                renderThumbnails();
+            });
+
             // 썸네일 클릭 시 메인 화면 변경
             thumb.addEventListener('click', (e) => {
                 e.stopPropagation();
