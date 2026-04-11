@@ -2207,8 +2207,9 @@ body {
     bottom: 18%;
     font-size: 4rem;
     animation: pencilDraw 3s ease-in-out infinite;
-    z-index: 2;
+    z-index: 0;
     filter: drop-shadow(0 4px 12px rgba(0,0,0,0.2));
+    pointer-events: none;
 }
 
 @keyframes pencilDraw {
