@@ -239,9 +239,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const purchasedItems = new Set();   // 구매한 아이템 이름 목록
 
     // 선택된 스타일 (적용 전)
-    let pendingStyle = { shape: 'circle', badge: 'star', effect: 'none' };
+    let pendingStyle = { shape: 'circle', badge: 'star', effect: 'none', gender: 'boy', skin: 'white' };
     // 실제 적용된 스타일
-    let appliedStyle = { shape: 'circle', badge: 'star', effect: 'none' };
+    let appliedStyle = { shape: 'circle', badge: 'star', effect: 'none', gender: 'boy', skin: 'white' };
 
     const badgeEmojis = { star: '⭐', fire: '🔥', shield: '🛡️', crown: '👑' };
 
@@ -383,11 +383,9 @@ document.addEventListener('DOMContentLoaded', () => {
         const initial = loggedInUser.charAt(0).toUpperCase();
         const color = user ? user.color : '#ffcc00';
 
-        // 아바타 색상 & 이니셜
+        // 아바타 색상 & 이니셜 (SVG 반영)
         const avatarEl = document.getElementById('mpm-avatar');
-        avatarEl.textContent = initial;
-        avatarEl.style.background = color;
-        avatarEl.style.color = color === '#ffcc00' ? '#111' : '#fff';
+        avatarEl.style.backgroundImage = getAvatarSVG(appliedStyle.gender, appliedStyle.skin);
         avatarEl.style.borderColor = color;
 
         document.getElementById('mpm-name').textContent = loggedInUser;
@@ -422,10 +420,43 @@ document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('upload-heart-count').textContent = `${hearts} ❤️`;
     }
 
+    function getAvatarSVG(gender, skinTone) {
+        const skinColors = {
+            'white': '#ffd1b3',
+            'yellow': '#f5d08e',
+            'brown': '#b37a4c',
+            'black': '#50301a'
+        };
+        const c = skinColors[skinTone] || skinColors['white'];
+        
+        const svg = `
+        <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="50" cy="50" r="50" fill="#a4e5d9" />
+            ${gender === 'girl' ? '<path d="M25 40 Q15 90 25 100 L75 100 Q85 90 75 40 Z" fill="#2c1b18" />' : ''}
+            <rect x="42" y="60" width="16" height="15" fill="${c}" />
+            <rect x="42" y="60" width="16" height="5" fill="rgba(0,0,0,0.1)" />
+            <path d="M 20 100 C 20 70, 80 70, 80 100" fill="#ffffff" />
+            <path d="M 42 70 C 46 76, 54 76, 58 70" fill="${c}" />
+            <circle cx="50" cy="42" r="23" fill="${c}" />
+            <circle cx="41" cy="40" r="3" fill="#111" />
+            <circle cx="59" cy="40" r="3" fill="#111" />
+            <circle cx="37" cy="46" r="3" fill="#ff7da7" opacity="0.4" />
+            <circle cx="63" cy="46" r="3" fill="#ff7da7" opacity="0.4" />
+            <path d="M 45 49 Q 50 54 55 49" stroke="#111" stroke-width="2" fill="none" stroke-linecap="round" />
+            ${gender === 'boy' ? '<path d="M22 45 C15 10, 85 10, 78 45 C70 25, 30 25, 22 45" fill="#2c1b18" />' : '<path d="M22 45 C30 20, 70 20, 78 45 C75 30, 25 30, 22 45" fill="#2c1b18" />'}
+        </svg>
+        `.trim().replace(/\n/g, '').replace(/\s+/g, ' ');
+        return \`url('data:image/svg+xml;utf8,\${encodeURIComponent(svg)}')\`;
+    }
+
     // ── 아바타 미리보기 적용 ───────────────────────────
     function applyAvatarStyle(style) {
         const ring = document.getElementById('avatar-ring');
         const badge = document.getElementById('avatar-badge');
+        const inner = document.getElementById('avatar-inner');
+
+        // SVG 적용
+        inner.style.backgroundImage = getAvatarSVG(style.gender, style.skin);
 
         // 기존 클래스 초기화
         ring.className = 'profile-avatar-ring';
@@ -522,6 +553,8 @@ document.addEventListener('DOMContentLoaded', () => {
             document.querySelectorAll(`.pf-option[data-group="${group}"]`).forEach(o => {
                 o.classList.toggle('selected', o.dataset.value === pendingStyle[group]);
             });
+            // 라이브 미리보기 반영
+            applyAvatarStyle(pendingStyle);
         }
 
         // Apply Style 버튼
@@ -634,10 +667,11 @@ document.addEventListener('DOMContentLoaded', () => {
         ['feed-avatar-btn', 'upload-avatar-btn', 'shop-avatar-btn'].forEach(id => {
             const btn = document.getElementById(id);
             if (!btn) return;
-            btn.textContent = initial;
-            btn.style.background = color;
+            btn.style.backgroundImage = getAvatarSVG(appliedStyle.gender, appliedStyle.skin);
+            btn.style.backgroundSize = 'cover';
+            btn.style.backgroundPosition = 'center';
             btn.style.borderColor = color;
-            btn.style.color = color === '#ffcc00' ? '#111' : '#fff';
+            btn.textContent = '';
         });
     }
 
@@ -649,8 +683,8 @@ document.addEventListener('DOMContentLoaded', () => {
         hearts = 108;
         loggedInUser = 'Guest';
         purchasedItems.clear();
-        pendingStyle = { shape: 'circle', badge: 'star', effect: 'none' };
-        appliedStyle = { shape: 'circle', badge: 'star', effect: 'none' };
+        pendingStyle = { shape: 'circle', badge: 'star', effect: 'none', gender: 'boy', skin: 'white' };
+        appliedStyle = { shape: 'circle', badge: 'star', effect: 'none', gender: 'boy', skin: 'white' };
         updateAllAvatarBtns('?', '#ccc');
     }
 

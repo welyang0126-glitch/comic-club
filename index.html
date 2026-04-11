@@ -336,8 +336,8 @@
             <!-- 아바타 미리보기 -->
             <div class="profile-avatar-wrap">
                 <div class="profile-avatar-ring" id="avatar-ring">
-                    <div class="profile-avatar-inner" id="avatar-inner">
-                        <span class="avatar-emoji" id="avatar-emoji">🧑</span>
+                    <div class="profile-avatar-inner" id="avatar-inner" style="background-size: cover; background-position: center;">
+                        <span class="avatar-emoji" id="avatar-emoji"></span>
                     </div>
                     <div class="avatar-badge" id="avatar-badge">⭐</div>
                 </div>
@@ -353,6 +353,34 @@
                 </div>
                 <div class="closet-empty" id="closet-empty">No items yet. Buy some from the Shop!</div>
                 <div class="closet-list" id="closet-list"></div>
+
+                <!-- GENDER -->
+                <p class="pf-section-label">GENDER</p>
+                <div class="pf-option-row" id="gender-row">
+                    <div class="pf-option selected" data-group="gender" data-value="boy" data-free="true" title="Boy">
+                        <span class="opt-emoji">👦</span>
+                    </div>
+                    <div class="pf-option" data-group="gender" data-value="girl" data-free="true" title="Girl">
+                        <span class="opt-emoji">👧</span>
+                    </div>
+                </div>
+
+                <!-- SKIN TONE -->
+                <p class="pf-section-label">SKIN TONE</p>
+                <div class="pf-option-row" id="skin-row">
+                    <div class="pf-option selected" data-group="skin" data-value="white" data-free="true" title="White">
+                        <span class="opt-emoji">🏻</span>
+                    </div>
+                    <div class="pf-option" data-group="skin" data-value="yellow" data-free="true" title="Asian">
+                        <span class="opt-emoji">🏼</span>
+                    </div>
+                    <div class="pf-option" data-group="skin" data-value="brown" data-free="true" title="Brown">
+                        <span class="opt-emoji">🏽</span>
+                    </div>
+                    <div class="pf-option" data-group="skin" data-value="black" data-free="true" title="Black">
+                        <span class="opt-emoji">🏿</span>
+                    </div>
+                </div>
 
                 <!-- SHAPES -->
                 <p class="pf-section-label">SHAPES</p>
@@ -465,7 +493,7 @@
 
                 <!-- 프로필 정보 -->
                 <div class="mpm-profile">
-                    <div class="mpm-avatar" id="mpm-avatar">K</div>
+                    <div class="mpm-avatar" id="mpm-avatar" style="background-size: cover; background-position: center; font-size:0;"></div>
                     <p class="mpm-name" id="mpm-name">Kevin</p>
                     <p class="mpm-handle" id="mpm-handle">@Kevin</p>
                 </div>
