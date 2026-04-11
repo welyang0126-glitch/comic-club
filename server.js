@@ -328,6 +328,42 @@ app.post('/api/posts/:id/comments', async (req, res) => {
     res.json({ success: true, comments: post.comments });
 });
 
+app.delete('/api/posts/:id', async (req, res) => {
+    const postId = req.params.id;
+    const userId = (req.query.userId || '').toLowerCase();
+
+    if (pool) {
+        const postRes = await pool.query('SELECT data FROM posts WHERE id = $1', [postId]);
+        if (postRes.rows.length === 0) return res.status(404).json({ error: 'Post not found' });
+        
+        const post = postRes.rows[0].data;
+        if (post.authorId.toLowerCase() !== userId) return res.status(403).json({ error: 'Unauthorized to delete this post' });
+
+        await pool.query('DELETE FROM posts WHERE id = $1', [postId]);
+
+        const userRes = await pool.query('SELECT data FROM users WHERE id = $1', [userId]);
+        if (userRes.rows.length > 0) {
+            const userData = userRes.rows[0].data;
+            userData.postIds = userData.postIds.filter(id => id !== postId);
+            await pool.query('UPDATE users SET data = $1 WHERE id = $2', [userData, userId]);
+        }
+        res.json({ success: true });
+    } else {
+        const post = localPosts[postId];
+        if (!post) return res.status(404).json({ error: 'Post not found' });
+        if (post.authorId.toLowerCase() !== userId) return res.status(403).json({ error: 'Unauthorized' });
+
+        delete localPosts[postId];
+        saveLocalJSON(path.join(DATA_DIR, 'posts.json'), localPosts);
+
+        if (localUsers[userId]) {
+            localUsers[userId].postIds = localUsers[userId].postIds.filter(id => id !== postId);
+            saveLocalJSON(path.join(DATA_DIR, 'users.json'), localUsers);
+        }
+        res.json({ success: true });
+    }
+});
+
 app.post('/api/users/:id/update', async (req, res) => {
     const key = req.params.id.toLowerCase();
     if (pool) {

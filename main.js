@@ -297,6 +297,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     💬 <span class="comment-count">${content.comments ? content.comments.length : 0}</span>
                 </button>
                 <button class="action-btn">↗ Share</button>
+                ${(loggedInUser !== 'Guest' && loggedInUser.toLowerCase() === content.authorId.toLowerCase()) ? `
+                <button class="action-btn delete-post-btn" data-post-id="${postId}" style="color: #ff4444; margin-left: auto;">🗑️</button>
+                ` : ''}
             </div>
             <div class="comment-section" id="comments-${postId}">
                 <div class="comment-list" id="comment-list-${postId}"></div>
@@ -645,6 +648,42 @@ document.addEventListener('DOMContentLoaded', () => {
                 // 댓글 수 업데이트
                 const toggleBtn = document.querySelector(`.comment-toggle-btn[data-post-id="${postId}"]`);
                 if (toggleBtn) toggleBtn.querySelector('.comment-count').textContent = getAllComments(postId).length;
+            });
+        }
+
+        // ── 포스트 삭제 버튼 ───────────────────────────────
+        const deleteBtn = e.target.closest('.delete-post-btn');
+        if (deleteBtn) {
+            const postId = deleteBtn.dataset.postId;
+            if (!confirm('정말로 이 포스트를 삭제하시겠습니까?')) return;
+
+            deleteBtn.disabled = true;
+            deleteBtn.textContent = '...';
+
+            fetch(`/api/posts/${postId}?userId=${loggedInUser}`, { method: 'DELETE' })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    const postCard = document.querySelector(`.feed-post[data-post-id="${postId}"]`);
+                    if (postCard) postCard.remove();
+                    delete POSTS_CONTENT[postId];
+                    // delete from user array
+                    const ukey = loggedInUser.toLowerCase();
+                    if (USERS_DATA[ukey]) {
+                        USERS_DATA[ukey].postIds = USERS_DATA[ukey].postIds.filter(id => id !== postId);
+                        if (document.getElementById('profile-screen')) renderProfile();
+                    }
+                } else {
+                    alert(data.error || '삭제에 실패했습니다.');
+                    deleteBtn.disabled = false;
+                    deleteBtn.textContent = '🗑️';
+                }
+            })
+            .catch(err => {
+                console.error(err);
+                alert('서버 오류로 삭제에 실패했습니다.');
+                deleteBtn.disabled = false;
+                deleteBtn.textContent = '🗑️';
             });
         }
 
