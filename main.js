@@ -430,6 +430,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const hairColors = {
             'blonde': '#ffcc00',
             'red': '#d32f2f',
+            'brown': '#6a4e32',
             'black': '#2c1b18',
             'white': '#ffffff'
         };
@@ -453,7 +454,7 @@ document.addEventListener('DOMContentLoaded', () => {
             ${gender === 'boy' ? `<path d="M22 45 C15 10, 85 10, 78 45 C70 25, 30 25, 22 45" fill="${hc}" />` : `<path d="M22 45 C30 20, 70 20, 78 45 C75 30, 25 30, 22 45" fill="${hc}" />`}
         </svg>
         `.trim().replace(/\n/g, '').replace(/\s+/g, ' ');
-        return `url('data:image/svg+xml;utf8,${encodeURIComponent(svg)}')`;
+        return `url('data:image/svg+xml,${encodeURIComponent(svg)}')`;
     }
 
     // ── 아바타 미리보기 적용 ───────────────────────────
