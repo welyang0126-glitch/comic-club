@@ -118,14 +118,13 @@ document.addEventListener('DOMContentLoaded', () => {
             USERS_DB = USERS_DATA; 
             POSTS_CONTENT = await postsRes.json();
 
-            // 커스텀 포스트(서버 저장된) 피드 주입
             const feedBody = document.querySelector('.feed-body');
             const customPosts = Object.keys(POSTS_CONTENT).filter(id => POSTS_CONTENT[id].imageClass === 'custom-upload');
             if (feedBody && customPosts.length > 0) {
                 const htmls = customPosts.map(buildPostCardHTML);
-                const storyStrip = feedBody.querySelector('.story-strip');
-                if (storyStrip) {
-                    storyStrip.insertAdjacentHTML('afterend', htmls.join(''));
+                const storyContainer = feedBody.querySelector('.story-container');
+                if (storyContainer) {
+                    storyContainer.insertAdjacentHTML('afterend', htmls.join(''));
                 }
             }
 
@@ -1014,9 +1013,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
                     // 피드화면에 출력
                     const feedBody = document.querySelector('.feed-body');
-                    const storyStrip = feedBody ? feedBody.querySelector('.story-strip') : null;
-                    if (storyStrip) {
-                        storyStrip.insertAdjacentHTML('afterend', buildPostCardHTML(newPostId));
+                    const storyContainer = feedBody ? feedBody.querySelector('.story-container') : null;
+                    if (storyContainer) {
+                        storyContainer.insertAdjacentHTML('afterend', buildPostCardHTML(newPostId));
                         renderFeedPost(newPostId);
                     }
 
