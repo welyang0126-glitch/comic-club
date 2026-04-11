@@ -666,7 +666,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     let isIdChecked = false;
     // 유저 데이터베이스 (MOCK)
-    const USERS_DB = {
+    USERS_DB = {
         'kevin': { id: 'Kevin', pwd: 'acccng', name: 'Kevin' },
         'admin': { id: 'admin', pwd: 'admin', name: 'Admin User' },
         'test': { id: 'test', pwd: 'test', name: 'Test User' },
