@@ -238,9 +238,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const purchasedItems = new Set();   // 구매한 아이템 이름 목록
 
     // 선택된 스타일 (적용 전)
-    let pendingStyle = { shape: 'circle', badge: 'star', effect: 'none', gender: 'boy', skin: 'white', hair: 'black' };
+    let pendingStyle = { shape: 'circle', badge: 'star', effect: 'none', gender: 'boy', skin: 'white', hair: 'black', expression: 'smile', bg: 'mint' };
     // 실제 적용된 스타일
-    let appliedStyle = { shape: 'circle', badge: 'star', effect: 'none', gender: 'boy', skin: 'white', hair: 'black' };
+    let appliedStyle = { shape: 'circle', badge: 'star', effect: 'none', gender: 'boy', skin: 'white', hair: 'black', expression: 'smile', bg: 'mint' };
 
     const badgeEmojis = { star: '⭐', fire: '🔥', shield: '🛡️', crown: '👑' };
 
@@ -248,16 +248,32 @@ document.addEventListener('DOMContentLoaded', () => {
     const allScreens = ['feed-screen', 'upload-screen', 'shop-screen', 'profile-screen', 'user-profile-screen'];
 
     function showScreen(name) {
-        allScreens.forEach(id => document.getElementById(id).classList.add('hidden'));
+        const currentScreen = allScreens.find(id => !document.getElementById(id).classList.contains('hidden'));
+        if (currentScreen) {
+            document.getElementById(currentScreen).classList.add('screen-transition-exit');
+            setTimeout(() => {
+                document.getElementById(currentScreen).classList.remove('screen-transition-exit');
+                document.getElementById(currentScreen).classList.add('hidden');
+            }, 180);
+        } else {
+            allScreens.forEach(id => document.getElementById(id).classList.add('hidden'));
+        }
+
         const map = { feed: 'feed-screen', upload: 'upload-screen', shop: 'shop-screen', profile: 'profile-screen' };
-        if (map[name]) document.getElementById(map[name]).classList.remove('hidden');
+        if (map[name]) {
+            setTimeout(() => {
+                document.getElementById(map[name]).classList.remove('hidden');
+                document.getElementById(map[name]).classList.add('screen-transition-enter');
+                setTimeout(() => document.getElementById(map[name]).classList.remove('screen-transition-enter'), 350);
+            }, 180);
+        }
 
         document.querySelectorAll('.nav-item').forEach(item => {
             item.classList.toggle('active', item.dataset.target === name);
         });
 
-        if (name === 'profile') renderProfile();
-        if (name === 'feed') initFeed();
+        if (name === 'profile') setTimeout(() => renderProfile(), 200);
+        if (name === 'feed') setTimeout(() => initFeed(), 200);
     }
 
     // ── 유저 프로필 화면 (작가별 개인 피드) ───────────────
@@ -394,7 +410,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // 아바타 색상 & 이니셜 (SVG 반영)
         const avatarEl = document.getElementById('mpm-avatar');
-        avatarEl.style.backgroundImage = getAvatarSVG(appliedStyle.gender, appliedStyle.skin, appliedStyle.hair);
+        avatarEl.style.backgroundImage = getAvatarSVG(appliedStyle.gender, appliedStyle.skin, appliedStyle.hair, appliedStyle.expression, appliedStyle.bg);
         avatarEl.style.borderColor = color;
 
         document.getElementById('mpm-name').textContent = loggedInUser;
@@ -429,7 +445,7 @@ document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('upload-heart-count').textContent = `${hearts} ❤️`;
     }
 
-    function getAvatarSVG(gender, skinTone, hairTone) {
+    function getAvatarSVG(gender, skinTone, hairTone, expression, bgColor) {
         const skinColors = {
             'white': '#ffd1b3',
             'yellow': '#f5d08e',
@@ -443,23 +459,39 @@ document.addEventListener('DOMContentLoaded', () => {
             'black': '#2c1b18',
             'white': '#ffffff'
         };
+        const bgColors = {
+            'mint': '#a4e5d9', 'pink': '#ffb6c1', 'purple': '#c9b1ff',
+            'yellow': '#fff3b0', 'sky': '#87ceeb'
+        };
         const c = skinColors[skinTone] || skinColors['white'];
         const hc = hairColors[hairTone] || hairColors['black'];
-        
+        const bg = bgColors[bgColor] || bgColors['mint'];
+
+        // Expression paths
+        const expressions = {
+            'smile': '<path d="M 45 49 Q 50 54 55 49" stroke="#111" stroke-width="2" fill="none" stroke-linecap="round" />',
+            'wink': '<path d="M 45 49 Q 50 54 55 49" stroke="#111" stroke-width="2" fill="none" stroke-linecap="round" /><line x1="56" y1="40" x2="62" y2="40" stroke="#111" stroke-width="2" stroke-linecap="round" />',
+            'surprised': '<ellipse cx="50" cy="51" rx="4" ry="5" fill="#111" />',
+            'cool': '<rect x="36" y="37" width="12" height="5" rx="2" fill="#111" /><rect x="52" y="37" width="12" height="5" rx="2" fill="#111" /><path d="M 48 37 L 52 37" stroke="#111" stroke-width="1.5" /><path d="M 45 49 Q 50 52 55 49" stroke="#111" stroke-width="2" fill="none" stroke-linecap="round" />',
+            'heart': '<path d="M 45 49 Q 50 54 55 49" stroke="#111" stroke-width="2" fill="none" stroke-linecap="round" /><path d="M39 38 C37 35 41 34 42 37 C43 34 47 35 45 38 C43 41 42 42 42 42 C42 42 41 41 39 38Z" fill="#e74c3c" /><path d="M55 38 C53 35 57 34 58 37 C59 34 63 35 61 38 C59 41 58 42 58 42 C58 42 57 41 55 38Z" fill="#e74c3c" />'
+        };
+        const expr = expression || 'smile';
+        const eyesDefault = expr === 'cool' ? '' : '<circle cx="41" cy="40" r="3" fill="#111" /><circle cx="59" cy="40" r="3" fill="#111" />';
+        const winkOverride = expr === 'wink' ? '<circle cx="41" cy="40" r="3" fill="#111" />' : eyesDefault;
+
         const svg = `
         <svg viewBox="15 15 70 70" xmlns="http://www.w3.org/2000/svg">
-            <rect x="0" y="0" width="100" height="100" fill="#a4e5d9" />
+            <rect x="0" y="0" width="100" height="100" fill="${bg}" />
             ${gender === 'girl' ? `<path d="M25 40 Q15 90 25 100 L75 100 Q85 90 75 40 Z" fill="${hc}" />` : ''}
             <rect x="42" y="60" width="16" height="15" fill="${c}" />
             <rect x="42" y="60" width="16" height="5" fill="rgba(0,0,0,0.1)" />
             <path d="M 20 100 C 20 70, 80 70, 80 100" fill="#ffffff" />
             <path d="M 42 70 C 46 76, 54 76, 58 70" fill="${c}" />
             <circle cx="50" cy="42" r="23" fill="${c}" />
-            <circle cx="41" cy="40" r="3" fill="#111" />
-            <circle cx="59" cy="40" r="3" fill="#111" />
+            ${winkOverride}
             <circle cx="37" cy="46" r="3" fill="#ff7da7" opacity="0.4" />
             <circle cx="63" cy="46" r="3" fill="#ff7da7" opacity="0.4" />
-            <path d="M 45 49 Q 50 54 55 49" stroke="#111" stroke-width="2" fill="none" stroke-linecap="round" />
+            ${expressions[expr] || expressions['smile']}
             ${gender === 'boy' ? `<path d="M22 45 C15 10, 85 10, 78 45 C70 25, 30 25, 22 45" fill="${hc}" />` : `<path d="M22 45 C30 20, 70 20, 78 45 C75 30, 25 30, 22 45" fill="${hc}" />`}
         </svg>
         `.trim().replace(/\n/g, '').replace(/\s+/g, ' ');
@@ -473,7 +505,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const inner = document.getElementById('avatar-inner');
 
         // SVG 적용
-        inner.style.backgroundImage = getAvatarSVG(style.gender, style.skin, style.hair);
+        inner.style.backgroundImage = getAvatarSVG(style.gender, style.skin, style.hair, style.expression, style.bg);
 
         // 글자 제거
         const avatarEmojiEl = document.getElementById('avatar-emoji');
@@ -534,6 +566,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // 현재 적용된 스타일로 아바타 미리보기
         applyAvatarStyle(appliedStyle);
+
+        // E2: 카운터 애니메이션
+        const heartDisplay = document.getElementById('profile-heart-display');
+        if (heartDisplay && window.animateCounter) {
+            heartDisplay.textContent = '0';
+            window.animateCounter(heartDisplay, hearts);
+            // 하트 이모지 추후 추가
+            setTimeout(() => heartDisplay.textContent = `${hearts} ❤️`, 1200);
+        }
     }
 
     // ── 클릭 이벤트 통합 처리 ─────────────────────────
@@ -620,6 +661,11 @@ document.addEventListener('DOMContentLoaded', () => {
             likeBtn.classList.remove('pop');
             void likeBtn.offsetWidth; // reflow
             likeBtn.classList.add('pop');
+
+            // B2: 하트 파티클 터지는 효과
+            if (newLiked && window.spawnHeartParticles) {
+                window.spawnHeartParticles(likeBtn);
+            }
 
             // localStorage 동기화
             toggleLike(postId, user);
@@ -728,6 +774,38 @@ document.addEventListener('DOMContentLoaded', () => {
         // Shop More (프로필 → 상점)
         if (e.target.closest('#go-shop-from-profile')) showScreen('shop');
 
+        // ── D2/D3: Shop 구매 ─────────────────────────────
+        const buyBtn = e.target.closest('.buy-btn');
+        if (buyBtn) {
+            const card = buyBtn.closest('.shop-card') || buyBtn.closest('.shop-featured');
+            if (!card) return;
+            const price = parseInt(card.dataset.price) || 0;
+            const itemName = card.dataset.name || 'Item';
+
+            if (purchasedItems.has(itemName)) {
+                alert('이미 구매한 아이템입니다!');
+                return;
+            }
+            if (hearts < price) {
+                alert('하트가 부족합니다! 💔');
+                return;
+            }
+
+            hearts -= price;
+            purchasedItems.add(itemName);
+            updateHeartDisplays();
+
+            // D3: 언락 애니메이션
+            card.classList.add('unlocking');
+            buyBtn.textContent = '✅ Owned';
+            buyBtn.disabled = true;
+            buyBtn.style.opacity = '0.6';
+            setTimeout(() => card.classList.remove('unlocking'), 700);
+
+            // D2: 컨페티 효과
+            if (window.spawnConfetti) window.spawnConfetti();
+        }
+
         // Logout (프로필 화면 버튼 & 내 프로필 모달 버튼 공통)
         if (e.target.closest('#logout-btn') || e.target.closest('#mpm-logout-btn')) {
             doLogout();
@@ -738,7 +816,7 @@ document.addEventListener('DOMContentLoaded', () => {
         ['feed-avatar-btn', 'upload-avatar-btn', 'shop-avatar-btn'].forEach(id => {
             const btn = document.getElementById(id);
             if (!btn) return;
-            btn.style.backgroundImage = getAvatarSVG(appliedStyle.gender, appliedStyle.skin, appliedStyle.hair);
+            btn.style.backgroundImage = getAvatarSVG(appliedStyle.gender, appliedStyle.skin, appliedStyle.hair, appliedStyle.expression, appliedStyle.bg);
             btn.style.backgroundSize = 'cover';
             btn.style.backgroundPosition = 'center';
             btn.style.borderColor = color;
@@ -1131,6 +1209,25 @@ document.addEventListener('DOMContentLoaded', () => {
 
             previewConfirmBtn.textContent = 'Publishing...';
             previewConfirmBtn.disabled = true;
+
+            // C1: 프로그레스 바 표시
+            const progressWrap = document.querySelector('.upload-progress-wrap') || (() => {
+                const w = document.createElement('div');
+                w.className = 'upload-progress-wrap';
+                w.innerHTML = '<div class="upload-progress-bar"></div>';
+                previewConfirmBtn.parentElement.insertBefore(w, previewConfirmBtn.nextSibling);
+                return w;
+            })();
+            progressWrap.style.display = 'block';
+            const progressBar = progressWrap.querySelector('.upload-progress-bar');
+            progressBar.style.width = '0%';
+            let progress = 0;
+            const progressInterval = setInterval(() => {
+                progress += Math.random() * 15;
+                if (progress > 85) progress = 85;
+                progressBar.style.width = progress + '%';
+            }, 200);
+
             try {
                 const res = await fetch('/api/posts', {
                     method: 'POST',
@@ -1175,6 +1272,9 @@ document.addEventListener('DOMContentLoaded', () => {
             } catch(e) {
                 console.error('업로드 실패', e);
             } finally {
+                clearInterval(progressInterval);
+                progressBar.style.width = '100%';
+                setTimeout(() => { progressWrap.style.display = 'none'; progressBar.style.width = '0%'; }, 500);
                 previewConfirmBtn.textContent = '⬆ Publish to Feed';
                 previewConfirmBtn.disabled = false;
             }
@@ -1224,4 +1324,130 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }, 300); // 렌더링 대기 후 스크롤
     }
+
+    // ── A3: 타이핑 효과 ──────────────────────────────────
+    const typingEl = document.getElementById('typing-subtitle');
+    if (typingEl) {
+        const phrases = [
+            'Your space to create, share, and enjoy comics with friends.',
+            'Draw your story. Share your world.',
+            'Where imagination meets community.',
+        ];
+        let phraseIdx = 0;
+        let charIdx = 0;
+        let isDeleting = false;
+
+        function typeLoop() {
+            const current = phrases[phraseIdx];
+            if (!isDeleting) {
+                typingEl.innerHTML = current.substring(0, charIdx) + '<span class="typing-cursor"></span>';
+                charIdx++;
+                if (charIdx > current.length) {
+                    isDeleting = true;
+                    setTimeout(typeLoop, 2000);
+                    return;
+                }
+                setTimeout(typeLoop, 50);
+            } else {
+                typingEl.innerHTML = current.substring(0, charIdx) + '<span class="typing-cursor"></span>';
+                charIdx--;
+                if (charIdx < 0) {
+                    isDeleting = false;
+                    phraseIdx = (phraseIdx + 1) % phrases.length;
+                    setTimeout(typeLoop, 400);
+                    return;
+                }
+                setTimeout(typeLoop, 25);
+            }
+        }
+        typeLoop();
+    }
+
+    // ── B2: 하트 터지는 파티클 ────────────────────────────
+    window.spawnHeartParticles = function(btn) {
+        const rect = btn.getBoundingClientRect();
+        const cx = rect.left + rect.width / 2;
+        const cy = rect.top + rect.height / 2;
+        const emojis = ['❤️', '💕', '💖', '✨', '💗'];
+        for (let i = 0; i < 8; i++) {
+            const p = document.createElement('span');
+            p.className = 'heart-particle';
+            p.textContent = emojis[Math.floor(Math.random() * emojis.length)];
+            const angle = (Math.PI * 2 * i) / 8;
+            const dist = 40 + Math.random() * 30;
+            p.style.left = cx + 'px';
+            p.style.top = cy + 'px';
+            p.style.setProperty('--tx', Math.cos(angle) * dist + 'px');
+            p.style.setProperty('--ty', Math.sin(angle) * dist + 'px');
+            document.body.appendChild(p);
+            setTimeout(() => p.remove(), 850);
+        }
+    };
+
+    // ── D2: 컨페티 효과 ──────────────────────────────────
+    window.spawnConfetti = function() {
+        const colors = ['#ffcc00', '#ff6b6b', '#48dbfb', '#ff9ff3', '#54a0ff', '#5f27cd', '#feca57'];
+        for (let i = 0; i < 40; i++) {
+            const piece = document.createElement('div');
+            piece.className = 'confetti-piece';
+            piece.style.left = Math.random() * 100 + 'vw';
+            piece.style.background = colors[Math.floor(Math.random() * colors.length)];
+            piece.style.animationDuration = (1 + Math.random() * 1) + 's';
+            piece.style.animationDelay = Math.random() * 0.5 + 's';
+            piece.style.borderRadius = Math.random() > 0.5 ? '50%' : '2px';
+            piece.style.width = (6 + Math.random() * 8) + 'px';
+            piece.style.height = (6 + Math.random() * 8) + 'px';
+            document.body.appendChild(piece);
+            setTimeout(() => piece.remove(), 2500);
+        }
+    };
+
+    // ── E2: 카운터 애니메이션 ────────────────────────────
+    window.animateCounter = function(el, target) {
+        let current = 0;
+        const step = Math.max(1, Math.floor(target / 30));
+        const interval = setInterval(() => {
+            current += step;
+            if (current >= target) {
+                current = target;
+                clearInterval(interval);
+            }
+            el.textContent = current.toLocaleString();
+        }, 30);
+    };
+
+    // ── B6: 당겨서 새로고침 ──────────────────────────────
+    const feedBody = document.querySelector('.feed-body');
+    const pullIndicator = document.getElementById('pull-indicator');
+    if (feedBody && pullIndicator) {
+        let touchStartY = 0;
+        let pulling = false;
+
+        feedBody.addEventListener('touchstart', (e) => {
+            if (feedBody.scrollTop === 0) {
+                touchStartY = e.touches[0].clientY;
+                pulling = true;
+            }
+        });
+
+        feedBody.addEventListener('touchmove', (e) => {
+            if (!pulling) return;
+            const diff = e.touches[0].clientY - touchStartY;
+            if (diff > 60) {
+                pullIndicator.classList.add('visible');
+            }
+        });
+
+        feedBody.addEventListener('touchend', () => {
+            if (pullIndicator.classList.contains('visible')) {
+                pullIndicator.innerHTML = '<span class="pull-spinner">🔄</span> 새로고침 중...';
+                loadBackendData().then(() => {
+                    pullIndicator.innerHTML = '✅ 완료!';
+                    setTimeout(() => pullIndicator.classList.remove('visible'), 800);
+                });
+            }
+            pulling = false;
+        });
+    }
+
 });

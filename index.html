@@ -29,9 +29,13 @@
                     <span class="highlight">COMIC</span><br>
                     CENTER
                 </h1>
-                <p class="subtitle">
-                    Your space to <strong>create</strong>, share, and<br>enjoy comics with friends.
-                </p>
+                <p class="subtitle" id="typing-subtitle"></p>
+
+                <!-- A1: Animated pencil -->
+                <div class="hero-pencil">✏️</div>
+                <div class="hero-sparkle" style="top:15%;left:20%;animation-delay:0s;">✨</div>
+                <div class="hero-sparkle" style="top:30%;right:15%;animation-delay:0.7s;">⭐</div>
+                <div class="hero-sparkle" style="bottom:25%;left:35%;animation-delay:1.4s;">💫</div>
 
                 <button id="start-btn" class="start-btn">
                     START <span class="arrow">➔</span>
@@ -67,6 +71,8 @@
                 </div>
             </div>
 
+            <!-- B6: Pull to refresh -->
+            <div class="pull-indicator" id="pull-indicator">🔄 새로고침 중...</div>
             <div class="feed-body">
                 <!-- 스토리 -->
                 <div class="stories-row">
@@ -419,6 +425,46 @@
                     </div>
                     <div class="pf-option" data-group="hair" data-value="white" data-free="true" title="White">
                         <span class="opt-emoji" style="color:#ffffff; text-shadow:0 0 2px #aaa;">●</span>
+                    </div>
+                </div>
+
+                <!-- E3: EXPRESSION -->
+                <p class="pf-section-label">EXPRESSION</p>
+                <div class="pf-option-row" id="expression-row">
+                    <div class="pf-option selected" data-group="expression" data-value="smile" data-free="true" title="Smile">
+                        <span class="opt-emoji">😊</span>
+                    </div>
+                    <div class="pf-option" data-group="expression" data-value="wink" data-free="true" title="Wink">
+                        <span class="opt-emoji">😉</span>
+                    </div>
+                    <div class="pf-option" data-group="expression" data-value="surprised" data-free="true" title="Surprised">
+                        <span class="opt-emoji">😮</span>
+                    </div>
+                    <div class="pf-option" data-group="expression" data-value="cool" data-free="true" title="Cool">
+                        <span class="opt-emoji">😎</span>
+                    </div>
+                    <div class="pf-option" data-group="expression" data-value="heart" data-free="true" title="Heart Eyes">
+                        <span class="opt-emoji">😍</span>
+                    </div>
+                </div>
+
+                <!-- E4: BACKGROUND -->
+                <p class="pf-section-label">BACKGROUND</p>
+                <div class="pf-option-row" id="bg-row">
+                    <div class="pf-option selected" data-group="bg" data-value="mint" data-free="true" title="Mint">
+                        <span class="opt-emoji" style="color:#a4e5d9; text-shadow:0 0 1px #000;">●</span>
+                    </div>
+                    <div class="pf-option" data-group="bg" data-value="pink" data-free="true" title="Pink">
+                        <span class="opt-emoji" style="color:#ffb6c1; text-shadow:0 0 1px #000;">●</span>
+                    </div>
+                    <div class="pf-option" data-group="bg" data-value="purple" data-free="true" title="Purple">
+                        <span class="opt-emoji" style="color:#c9b1ff; text-shadow:0 0 1px #000;">●</span>
+                    </div>
+                    <div class="pf-option" data-group="bg" data-value="yellow" data-free="true" title="Yellow">
+                        <span class="opt-emoji" style="color:#fff3b0; text-shadow:0 0 1px #000;">●</span>
+                    </div>
+                    <div class="pf-option" data-group="bg" data-value="sky" data-free="true" title="Sky">
+                        <span class="opt-emoji" style="color:#87ceeb; text-shadow:0 0 1px #000;">●</span>
                     </div>
                 </div>
 
