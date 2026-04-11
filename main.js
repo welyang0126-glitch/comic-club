@@ -1,4 +1,90 @@
 document.addEventListener('DOMContentLoaded', () => {
+    // --- 🎵 귀여운 반응형 소리 (Web Audio API) ---
+    let audioCtx;
+    function playCuteSound() {
+        if (!audioCtx) {
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        }
+        if (audioCtx.state === 'suspended') {
+            audioCtx.resume();
+        }
+        const osc = audioCtx.createOscillator();
+        const gainNode = audioCtx.createGain();
+
+        // 초등학생이 좋아할 만한 귀여운 '뽁!' 소리
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(400, audioCtx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(800, audioCtx.currentTime + 0.08);
+
+        gainNode.gain.setValueAtTime(0.3, audioCtx.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+
+        osc.connect(gainNode);
+        gainNode.connect(audioCtx.destination);
+
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.1);
+    }
+
+    // --- 💖 사랑스러운 효과음 (하트, 댓글용) ---
+    function playLovelySound() {
+        if (!audioCtx) {
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        }
+        if (audioCtx.state === 'suspended') {
+            audioCtx.resume();
+        }
+        const t = audioCtx.currentTime;
+
+        // 첫 번째 음
+        const osc1 = audioCtx.createOscillator();
+        const gain1 = audioCtx.createGain();
+        osc1.type = 'sine';
+        osc1.frequency.setValueAtTime(880, t); // A5 노트
+        gain1.gain.setValueAtTime(0, t);
+        gain1.gain.linearRampToValueAtTime(0.2, t + 0.05);
+        gain1.gain.exponentialRampToValueAtTime(0.01, t + 0.2);
+        osc1.connect(gain1);
+        gain1.connect(audioCtx.destination);
+        osc1.start(t);
+        osc1.stop(t + 0.2);
+
+        // 두 번째 음 (반짝이는 산뜻한 높은 음)
+        const osc2 = audioCtx.createOscillator();
+        const gain2 = audioCtx.createGain();
+        osc2.type = 'sine';
+        osc2.frequency.setValueAtTime(1318.51, t + 0.1); // E6 노트
+        gain2.gain.setValueAtTime(0, t + 0.1);
+        gain2.gain.linearRampToValueAtTime(0.2, t + 0.15);
+        gain2.gain.exponentialRampToValueAtTime(0.01, t + 0.3);
+        osc2.connect(gain2);
+        gain2.connect(audioCtx.destination);
+        osc2.start(t + 0.1);
+        osc2.stop(t + 0.3);
+    }
+
+    // 클릭 가능한 모든 요소에 소리 효과 일괄 적용
+    document.addEventListener('click', (e) => {
+        // 하트 누를 때와 댓글 관련 액션인지 확인
+        const isLovelyAction = e.target.closest('.like-btn') ||
+            e.target.closest('.comment-submit') ||
+            e.target.closest('.comment-toggle-btn');
+
+        const isClickable = e.target.closest('button') ||
+            e.target.closest('.nav-item') ||
+            e.target.closest('.pf-option') ||
+            e.target.closest('.story-item') ||
+            e.target.closest('.post-user') ||
+            e.target.closest('a') ||
+            e.target.closest('#drop-zone');
+
+        if (isLovelyAction) {
+            playLovelySound();
+        } else if (isClickable) {
+            playCuteSound();
+        }
+    });
+
     const startBtn = document.getElementById('start-btn');
     const loginModal = document.getElementById('login-modal');
     const closeModal = document.getElementById('close-modal');
@@ -17,104 +103,84 @@ document.addEventListener('DOMContentLoaded', () => {
         if (e.target === loginModal) loginModal.classList.add('hidden');
     });
 
-    // ── 유저 데이터 (= /api/users 에 해당) ────────────────
-    const USERS_DATA = {
-        'glorich':    { name: 'GloRich_',    handle: '@GloRich_',    color: '#6a0dad', initial: 'G', bio: 'Neon Drift creator ✨ Comic artist since 2019', followers: 1240, postIds: ['post-1', 'gp-2', 'gp-3'] },
-        'jen_borden': { name: 'jen_borden',  handle: '@jen_borden',  color: '#e07b7b', initial: 'J', bio: 'DragonStar illustrator 🐉 Fantasy comic creator', followers: 2310, postIds: ['post-2', 'jp-2'] },
-        'kevin':      { name: 'Kevin',       handle: '@Kevin',       color: '#f4c542', initial: 'K', bio: 'Admin · Comic Club founder ⚡', followers: 530,  postIds: [] },
-        'alex':       { name: 'Alex',        handle: '@Alex',        color: '#e07bbd', initial: 'A', bio: 'Aspiring comic writer 🎨', followers: 320,  postIds: [] },
-        'juno':       { name: 'Juno',        handle: '@Juno',        color: '#7bc8e0', initial: 'J', bio: 'Manga fan & aspiring artist', followers: 180,  postIds: [] },
-        'sam':        { name: 'Sam',         handle: '@Sam',         color: '#a0e07b', initial: 'S', bio: 'Comic collector & critic', followers: 240,  postIds: [] },
-        'rita':       { name: 'Rita',        handle: '@Rita',        color: '#e07b7b', initial: 'R', bio: 'Webtoon enthusiast 🌸', followers: 160,  postIds: [] },
-    };
+    // ── 연동 데이터 전역 변수 ──────────────────────────────
+    let USERS_DATA = {};
+    let POSTS_CONTENT = {};
+    let USERS_DB = {}; 
 
-    // ── 포스트 콘텐츠 (= /api/posts 에 해당) ──────────────
-    const POSTS_CONTENT = {
-        'post-1': { title: 'Neon Drift, Part 14',   authorId: 'glorich',    imageClass: 'neon',   label: '🌆 NEON CITY',  scene: 'A lone figure walks through rain-soaked streets...', desc: 'Finally finished the rain scene! This chapter took me forever 😭✨', time: '2h ago' },
-        'post-2': { title: 'DragonStar',            authorId: 'jen_borden', imageClass: 'dragon', label: '🐉 DRAGONSTAR', scene: 'The dragon soars above the golden plains!',           desc: 'A dragon bright is a dragon right — new episode drops this Friday 🔥', time: '5h ago' },
-        'gp-2':   { title: 'Neon Drift, Part 13',   authorId: 'glorich',    imageClass: 'neon',   label: '🌆 NEON CITY',  scene: 'Two figures face off under flickering neon lights...', desc: 'The confrontation scene is finally here 💥 Took 3 weeks to draw!', time: '3d ago' },
-        'gp-3':   { title: 'Neon Drift, Part 1',    authorId: 'glorich',    imageClass: 'neon',   label: '🌆 NEON CITY',  scene: 'A city that never sleeps. A story just beginning...', desc: 'Where it all began. The very first chapter! 🌟 Throwback', time: '2mo ago' },
-        'jp-2':   { title: 'DragonStar: Origins',   authorId: 'jen_borden', imageClass: 'dragon', label: '🐉 DRAGONSTAR', scene: 'A young dragon hatches from a golden egg...', desc: 'The origin story — how DragonStar was born 🔥 Prequel chapter!', time: '1wk ago' },
-    };
+    async function loadBackendData() {
+        try {
+            const [usersRes, postsRes] = await Promise.all([
+                fetch('/api/users'),
+                fetch('/api/posts')
+            ]);
+            USERS_DATA = await usersRes.json();
+            USERS_DB = USERS_DATA; 
+            POSTS_CONTENT = await postsRes.json();
 
-    // ── 피드 DB (localStorage) ─────────────────────────
-    const POST_DEFAULTS = {
-        'post-1': { baseLikes: 284, baseComments: [
-            { id: 'c1', author: '@GloRich_', text: 'Finally done! This took so long 😭', time: '1h ago', color: '#6a0dad' },
-            { id: 'c2', author: '@Alex',     text: 'The rain scene looks amazing ✨',    time: '45m ago', color: '#e07bbd' },
-            { id: 'c3', author: '@Juno',     text: 'Chapter 14 already? Time flies 🔥',  time: '20m ago', color: '#7bc8e0' },
-        ]},
-        'post-2': { baseLikes: 512, baseComments: [
-            { id: 'c4', author: '@jen_borden', text: 'DragonStar forever 🐉❤️',           time: '4h ago', color: '#e07b7b' },
-            { id: 'c5', author: '@Sam',        text: 'The colors in this are insane!!',  time: '3h ago', color: '#a0e07b' },
-        ]},
-        'gp-2':  { baseLikes: 156, baseComments: [
-            { id: 'g1', author: '@Rita', text: 'That fight scene!! 🔥🔥', time: '2d ago', color: '#e07b7b' },
-        ]},
-        'gp-3':  { baseLikes: 89,  baseComments: [
-            { id: 'g2', author: '@Sam', text: 'Going back to the beginning 🥺', time: '1mo ago', color: '#a0e07b' },
-        ]},
-        'jp-2':  { baseLikes: 203, baseComments: [
-            { id: 'j1', author: '@Alex', text: 'The origin story is 🤯', time: '6d ago', color: '#e07bbd' },
-            { id: 'j2', author: '@Juno', text: 'I love prequel content!!',  time: '5d ago', color: '#7bc8e0' },
-        ]},
-    };
+            // 커스텀 포스트(서버 저장된) 피드 주입
+            const feedBody = document.querySelector('.feed-body');
+            const customPosts = Object.keys(POSTS_CONTENT).filter(id => POSTS_CONTENT[id].imageClass === 'custom-upload');
+            if (feedBody && customPosts.length > 0) {
+                const htmls = customPosts.map(buildPostCardHTML);
+                const storyStrip = feedBody.querySelector('.story-strip');
+                if (storyStrip) {
+                    storyStrip.insertAdjacentHTML('afterend', htmls.join(''));
+                }
+            }
 
-    function loadPostDB() {
-        try { return JSON.parse(localStorage.getItem('comicclub_posts') || '{}'); }
-        catch { return {}; }
-    }
-
-    function savePostDB(db) {
-        localStorage.setItem('comicclub_posts', JSON.stringify(db));
-    }
-
-    function getPostData(postId) {
-        const db = loadPostDB();
-        if (!db[postId]) {
-            db[postId] = { likes: {}, extraComments: [] };
-            savePostDB(db);
+            initFeed();
+        } catch(e) {
+            console.error('백엔드 연동 실패:', e);
         }
-        return db[postId];
     }
 
-    // 좋아요 수 = 기본값 + 내 좋아요 여부
     function getLikeCount(postId, currentUser) {
-        const def  = POST_DEFAULTS[postId];
-        const data = getPostData(postId);
-        const myLike = data.likes[currentUser] ? 1 : 0;
-        return def.baseLikes + myLike;
+        if (!POSTS_CONTENT[postId]) return 0;
+        return POSTS_CONTENT[postId].baseLikes + Object.keys(POSTS_CONTENT[postId].likes).length;
     }
 
     function isLiked(postId, currentUser) {
-        return !!getPostData(postId).likes[currentUser];
+        if (!POSTS_CONTENT[postId]) return false;
+        return !!POSTS_CONTENT[postId].likes[currentUser];
     }
 
-    function toggleLike(postId, currentUser) {
-        const db   = loadPostDB();
-        if (!db[postId]) db[postId] = { likes: {}, extraComments: [] };
-        db[postId].likes[currentUser] = !db[postId].likes[currentUser];
-        savePostDB(db);
-        return db[postId].likes[currentUser];
+    async function toggleLike(postId, currentUser) {
+        if (!POSTS_CONTENT[postId]) return false;
+        // Optimistic UI 반영
+        const currentlyLiked = !!POSTS_CONTENT[postId].likes[currentUser];
+        if (currentlyLiked) delete POSTS_CONTENT[postId].likes[currentUser];
+        else POSTS_CONTENT[postId].likes[currentUser] = true;
+
+        try {
+            await fetch(`/api/posts/${postId}/like`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ userId: currentUser })
+            });
+        } catch(e) { console.error('좋아요 실패', e); }
+        
+        return !currentlyLiked;
     }
 
     function getAllComments(postId) {
-        const base  = POST_DEFAULTS[postId].baseComments;
-        const extra = getPostData(postId).extraComments || [];
-        return [...base, ...extra];
+        if (!POSTS_CONTENT[postId]) return [];
+        return POSTS_CONTENT[postId].comments || [];
     }
 
-    function addComment(postId, currentUser, text) {
-        const db = loadPostDB();
-        if (!db[postId]) db[postId] = { likes: {}, extraComments: [] };
-        db[postId].extraComments.push({
-            id:     'u_' + Date.now(),
-            author: '@' + currentUser,
-            text,
-            time:   'Just now',
-            color:  '#f4c542',
-        });
-        savePostDB(db);
+    async function addComment(postId, currentUser, text) {
+        if (!POSTS_CONTENT[postId]) return;
+        try {
+            const res = await fetch(`/api/posts/${postId}/comments`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ userId: currentUser, text })
+            });
+            const data = await res.json();
+            if (data.success) {
+                POSTS_CONTENT[postId].comments = data.comments;
+            }
+        } catch(e) { console.error('댓글 작성 실패', e); }
     }
 
     // ── 피드 렌더 함수 ─────────────────────────────────
@@ -122,7 +188,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const currentUser = loggedInUser || 'Guest';
 
         // 좋아요 버튼
-        const likeBtn   = document.querySelector(`.like-btn[data-post-id="${postId}"]`);
+        const likeBtn = document.querySelector(`.like-btn[data-post-id="${postId}"]`);
         const likeCount = likeBtn?.querySelector('.like-count');
         if (likeBtn && likeCount) {
             const liked = isLiked(postId, currentUser);
@@ -148,7 +214,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         list.innerHTML = comments.map(c => `
             <div class="comment-item">
-                <div class="comment-avatar" style="background:${c.color}">${c.author.replace('@','').charAt(0).toUpperCase()}</div>
+                <div class="comment-avatar" style="background:${c.color}">${c.author.replace('@', '').charAt(0).toUpperCase()}</div>
                 <div class="comment-body">
                     <p class="comment-author">${c.author}</p>
                     <p class="comment-text">${c.text}</p>
@@ -161,8 +227,11 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function initFeed() {
-        Object.keys(POST_DEFAULTS).forEach(pid => renderFeedPost(pid));
+        Object.keys(POSTS_CONTENT).forEach(pid => renderFeedPost(pid));
     }
+
+    // 서버 데이터 최초 로딩
+    loadBackendData();
 
     // ── 상태 ──────────────────────────────────────────
     let hearts = 108;
@@ -174,7 +243,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // 실제 적용된 스타일
     let appliedStyle = { shape: 'circle', badge: 'star', effect: 'none' };
 
-    const badgeEmojis  = { star: '⭐', fire: '🔥', shield: '🛡️', crown: '👑' };
+    const badgeEmojis = { star: '⭐', fire: '🔥', shield: '🛡️', crown: '👑' };
 
     // ── 화면 전환 ──────────────────────────────────────
     const allScreens = ['feed-screen', 'upload-screen', 'shop-screen', 'profile-screen', 'user-profile-screen'];
@@ -189,13 +258,13 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         if (name === 'profile') renderProfile();
-        if (name === 'feed')    initFeed();
+        if (name === 'feed') initFeed();
     }
 
     // ── 유저 프로필 화면 (작가별 개인 피드) ───────────────
     function buildPostCardHTML(postId) {
         const content = POSTS_CONTENT[postId];
-        const author  = USERS_DATA[content.authorId];
+        const author = USERS_DATA[content.authorId];
         if (!content || !author) return '';
         return `
         <div class="feed-post" data-post-id="${postId}">
@@ -206,7 +275,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     <p class="post-time">${content.time}</p>
                 </div>
             </div>
-            <div class="post-image ${content.imageClass}">
+            <div class="post-image ${content.imageClass}" ${content.imageUrl ? `style="background-image: url(${content.imageUrl}); background-size: cover; background-position: center; cursor: pointer;"` : 'style="cursor: pointer;"'} data-webtoon-trigger="${postId}">
                 <div class="post-image-inner">
                     <p class="comic-label">${content.label}</p>
                     <p class="comic-scene">${content.scene}</p>
@@ -233,17 +302,61 @@ document.addEventListener('DOMContentLoaded', () => {
         </div>`;
     }
 
+    function openWebtoonViewer(postId) {
+        const content = POSTS_CONTENT[postId];
+        if (!content) return;
+        
+        document.getElementById('webtoon-title').textContent = content.title;
+        const viewerContent = document.getElementById('webtoon-content');
+        viewerContent.innerHTML = ''; // 화면 초기화
+        
+        if (content.imageUrls && content.imageUrls.length > 0) {
+            // 여러 사진 업로드된 경우 세로로 스크롤
+            content.imageUrls.forEach(url => {
+                const img = document.createElement('img');
+                img.src = url;
+                img.className = 'webtoon-image';
+                viewerContent.appendChild(img);
+            });
+        } else if (content.imageUrl) {
+            // 과거 데이터 (사진 1장)
+            const img = document.createElement('img');
+            img.src = content.imageUrl;
+            img.className = 'webtoon-image';
+            viewerContent.appendChild(img);
+        } else {
+            // 기본 데이터 (이미지 없고 css 클래스 배경만 있는 경우)
+            const placeholder = document.createElement('div');
+            placeholder.className = `post-image ${content.imageClass}`;
+            placeholder.style.width = '100%';
+            placeholder.style.maxWidth = '600px';
+            placeholder.style.height = '400px';
+            placeholder.style.display = 'flex';
+            placeholder.style.alignItems = 'flex-end';
+            placeholder.style.padding = '1rem';
+            placeholder.innerHTML = `
+                <div class="post-image-inner" style="color:white;">
+                    <p class="comic-label" style="font-size: 0.8rem; font-weight: bold; margin-bottom:0.5rem; opacity:0.8">${content.label}</p>
+                    <p class="comic-scene" style="font-size: 1rem; font-style: italic;">${content.scene}</p>
+                </div>
+            `;
+            viewerContent.appendChild(placeholder);
+        }
+        
+        document.getElementById('webtoon-viewer-screen').classList.remove('hidden');
+    }
+
     function showUserProfile(userId) {
         const user = USERS_DATA[userId];
         if (!user) return;
 
         // 헤더 정보 채우기
         const avatarEl = document.getElementById('up-avatar-lg');
-        avatarEl.textContent   = user.initial;
+        avatarEl.textContent = user.initial;
         avatarEl.style.background = user.color;
-        document.getElementById('up-name').textContent      = user.name;
-        document.getElementById('up-handle').textContent    = user.handle;
-        document.getElementById('up-bio').textContent       = user.bio;
+        document.getElementById('up-name').textContent = user.name;
+        document.getElementById('up-handle').textContent = user.handle;
+        document.getElementById('up-bio').textContent = user.bio;
         document.getElementById('up-followers').textContent = `${user.followers.toLocaleString()} followers`;
         document.getElementById('up-postcount').textContent = `${user.postIds.length} comics`;
 
@@ -268,19 +381,19 @@ document.addEventListener('DOMContentLoaded', () => {
     function openMyProfileModal() {
         const user = USERS_DATA[loggedInUser.toLowerCase()] || null;
         const initial = loggedInUser.charAt(0).toUpperCase();
-        const color   = user ? user.color : '#ffcc00';
+        const color = user ? user.color : '#ffcc00';
 
         // 아바타 색상 & 이니셜
         const avatarEl = document.getElementById('mpm-avatar');
-        avatarEl.textContent      = initial;
+        avatarEl.textContent = initial;
         avatarEl.style.background = color;
-        avatarEl.style.color      = color === '#ffcc00' ? '#111' : '#fff';
+        avatarEl.style.color = color === '#ffcc00' ? '#111' : '#fff';
         avatarEl.style.borderColor = color;
 
-        document.getElementById('mpm-name').textContent   = loggedInUser;
+        document.getElementById('mpm-name').textContent = loggedInUser;
         document.getElementById('mpm-handle').textContent = `@${loggedInUser}`;
         document.getElementById('mpm-hearts').textContent = hearts;
-        document.getElementById('mpm-items').textContent  = purchasedItems.size;
+        document.getElementById('mpm-items').textContent = purchasedItems.size;
 
         myProfileModal.classList.remove('hidden');
     }
@@ -302,8 +415,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // ── 하트 표시 업데이트 ─────────────────────────────
     function updateHeartDisplays() {
-        document.getElementById('balance-display').textContent       = `${hearts} ❤️`;
-        document.getElementById('shop-heart-display').textContent    = `${hearts} ❤️`;
+        document.getElementById('balance-display').textContent = `${hearts} ❤️`;
+        document.getElementById('shop-heart-display').textContent = `${hearts} ❤️`;
         document.getElementById('profile-heart-display').textContent = `${hearts} ❤️`;
         if (document.getElementById('upload-heart-count'))
             document.getElementById('upload-heart-count').textContent = `${hearts} ❤️`;
@@ -311,7 +424,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // ── 아바타 미리보기 적용 ───────────────────────────
     function applyAvatarStyle(style) {
-        const ring  = document.getElementById('avatar-ring');
+        const ring = document.getElementById('avatar-ring');
         const badge = document.getElementById('avatar-badge');
 
         // 기존 클래스 초기화
@@ -319,13 +432,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Shape
         if (style.shape === 'rounded') ring.classList.add('shape-rounded-ring');
-        if (style.shape === 'golden')  ring.classList.add('shape-golden-ring');
-        if (style.shape === 'hex')     ring.classList.add('shape-hex-ring');
+        if (style.shape === 'golden') ring.classList.add('shape-golden-ring');
+        if (style.shape === 'hex') ring.classList.add('shape-hex-ring');
 
         // Effect
-        if (style.effect === 'dark')   ring.classList.add('effect-dark');
+        if (style.effect === 'dark') ring.classList.add('effect-dark');
         if (style.effect === 'galaxy') ring.classList.add('effect-galaxy');
-        if (style.effect === 'gold')   ring.classList.add('effect-gold');
+        if (style.effect === 'gold') ring.classList.add('effect-gold');
 
         // Badge
         badge.textContent = badgeEmojis[style.badge] || '⭐';
@@ -337,7 +450,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // 클로젯
         const closetEmpty = document.getElementById('closet-empty');
-        const closetList  = document.getElementById('closet-list');
+        const closetList = document.getElementById('closet-list');
         closetList.innerHTML = '';
         if (purchasedItems.size === 0) {
             closetEmpty.style.display = 'block';
@@ -384,10 +497,10 @@ document.addEventListener('DOMContentLoaded', () => {
         // 구매 버튼
         const buyBtn = e.target.closest('.buy-btn');
         if (buyBtn) {
-            const card  = buyBtn.closest('[data-price]');
+            const card = buyBtn.closest('[data-price]');
             if (!card) return;
             const price = parseInt(card.dataset.price);
-            const name  = card.dataset.name;
+            const name = card.dataset.name;
             if (purchasedItems.has(name)) {
                 alert(`You already own "${name}"!`);
             } else if (hearts < price) {
@@ -424,15 +537,15 @@ document.addEventListener('DOMContentLoaded', () => {
         const likeBtn = e.target.closest('.like-btn');
         if (likeBtn) {
             const postId = likeBtn.dataset.postId;
-            const user   = loggedInUser || 'Guest';
+            const user = loggedInUser || 'Guest';
 
             // Optimistic UI: 즉시 반영
             const wasLiked = isLiked(postId, user);
-            const countEl  = likeBtn.querySelector('.like-count');
-            const iconEl   = likeBtn.querySelector('.like-icon');
+            const countEl = likeBtn.querySelector('.like-count');
+            const iconEl = likeBtn.querySelector('.like-icon');
             const newLiked = !wasLiked;
             countEl.textContent = parseInt(countEl.textContent) + (newLiked ? 1 : -1);
-            iconEl.textContent  = newLiked ? '❤️' : '🤍';
+            iconEl.textContent = newLiked ? '❤️' : '🤍';
             likeBtn.classList.toggle('liked', newLiked);
 
             // 팝 애니메이션
@@ -447,9 +560,9 @@ document.addEventListener('DOMContentLoaded', () => {
         // ── 댓글 토글 버튼 ───────────────────────────────
         const commentToggleBtn = e.target.closest('.comment-toggle-btn');
         if (commentToggleBtn) {
-            const postId  = commentToggleBtn.dataset.postId;
+            const postId = commentToggleBtn.dataset.postId;
             const section = document.getElementById(`comments-${postId}`);
-            const isOpen  = section.classList.toggle('open');
+            const isOpen = section.classList.toggle('open');
             if (isOpen) renderCommentList(postId);
         }
 
@@ -457,8 +570,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const submitBtn = e.target.closest('.comment-submit');
         if (submitBtn) {
             const postId = submitBtn.dataset.postId;
-            const input  = document.querySelector(`.comment-input[data-post-id="${postId}"]`);
-            const text   = input.value.trim();
+            const input = document.querySelector(`.comment-input[data-post-id="${postId}"]`);
+            const text = input.value.trim();
             if (!text) return;
 
             addComment(postId, loggedInUser || 'Guest', text);
@@ -470,6 +583,21 @@ document.addEventListener('DOMContentLoaded', () => {
             if (toggleBtn) toggleBtn.querySelector('.comment-count').textContent = getAllComments(postId).length;
         }
 
+        // ── 공유 버튼 클릭 ───────────────────────────────
+        const shareBtn = e.target.closest('.action-btn');
+        if (shareBtn && shareBtn.textContent.includes('Share')) {
+            const feedPost = shareBtn.closest('.feed-post');
+            if (feedPost) {
+                const postId = feedPost.dataset.postId;
+                const shareUrl = `${window.location.origin}${window.location.pathname}?post=${postId}`;
+                navigator.clipboard.writeText(shareUrl).then(() => {
+                    alert('링크가 복사되었습니다! 친구들에게 공유해보세요.');
+                }).catch(err => {
+                    console.error('클립보드 복사 실패:', err);
+                });
+            }
+        }
+
         // ── 스토리 아바타 클릭 → 유저 프로필 ────────────────
         const storyItem = e.target.closest('.story-item[data-user-id]');
         if (storyItem) showUserProfile(storyItem.dataset.userId);
@@ -477,6 +605,18 @@ document.addEventListener('DOMContentLoaded', () => {
         // ── 포스트 작성자 클릭 → 유저 프로필 ────────────────
         const postUser = e.target.closest('.post-user[data-user-id]');
         if (postUser) showUserProfile(postUser.dataset.userId);
+
+        // ── 웹툰 뷰어 열기 ──────────────────────────────────
+        const webtoonTrigger = e.target.closest('[data-webtoon-trigger]');
+        if (webtoonTrigger) {
+            const postId = webtoonTrigger.dataset.webtoonTrigger;
+            openWebtoonViewer(postId);
+        }
+
+        // ── 웹툰 뷰어 Back 버튼 ─────────────────────────────
+        if (e.target.closest('#webtoon-back-btn')) {
+            document.getElementById('webtoon-viewer-screen').classList.add('hidden');
+        }
 
         // ── 유저 프로필 Back 버튼 → 피드 ────────────────────
         if (e.target.closest('#up-back-btn')) showScreen('feed');
@@ -494,10 +634,10 @@ document.addEventListener('DOMContentLoaded', () => {
         ['feed-avatar-btn', 'upload-avatar-btn', 'shop-avatar-btn'].forEach(id => {
             const btn = document.getElementById(id);
             if (!btn) return;
-            btn.textContent       = initial;
-            btn.style.background  = color;
+            btn.textContent = initial;
+            btn.style.background = color;
             btn.style.borderColor = color;
-            btn.style.color       = color === '#ffcc00' ? '#111' : '#fff';
+            btn.style.color = color === '#ffcc00' ? '#111' : '#fff';
         });
     }
 
@@ -523,13 +663,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const checkIdBtn = document.getElementById('check-id-btn');
     const idCheckMsg = document.getElementById('id-check-msg');
     const signupId = document.getElementById('signup-id');
-    
+
     let isIdChecked = false;
     // 유저 데이터베이스 (MOCK)
     const USERS_DB = {
         'kevin': { id: 'Kevin', pwd: 'acccng', name: 'Kevin' },
         'admin': { id: 'admin', pwd: 'admin', name: 'Admin User' },
-        'test':  { id: 'test', pwd: 'test', name: 'Test User' },
+        'test': { id: 'test', pwd: 'test', name: 'Test User' },
         'comic': { id: 'comic', pwd: '1234', name: 'Comic Master' }
     };
 
@@ -594,9 +734,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     loginForm.addEventListener('submit', (e) => {
         e.preventDefault();
-        const id  = document.getElementById('email').value.trim();
+        const id = document.getElementById('email').value.trim();
         const pwd = document.getElementById('password').value;
-        
+
         const user = USERS_DB[id.toLowerCase()];
 
         if (user && user.pwd === pwd) {
@@ -608,9 +748,9 @@ document.addEventListener('DOMContentLoaded', () => {
             const profileNameEl = document.querySelector('.profile-name');
             if (profileNameEl) profileNameEl.textContent = user.name;
 
-            const initial  = user.name.charAt(0).toUpperCase();
+            const initial = user.name.charAt(0).toUpperCase();
             const userData = USERS_DATA[user.name.toLowerCase()];
-            const color    = userData ? userData.color : '#ffcc00';
+            const color = userData ? userData.color : '#ffcc00';
             const avatarEmojiEl = document.getElementById('avatar-emoji');
             if (avatarEmojiEl) avatarEmojiEl.textContent = initial;
             updateAllAvatarBtns(initial, color);
@@ -622,13 +762,13 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     if (signupForm) {
-        signupForm.addEventListener('submit', (e) => {
+        signupForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             if (!isIdChecked) {
                 alert('아이디 중복 확인을 완료해주세요.');
                 return;
             }
-            
+
             const newId = document.getElementById('signup-id').value.trim();
             const newName = document.getElementById('signup-name').value.trim();
             const pwd = document.getElementById('signup-pwd').value;
@@ -638,29 +778,184 @@ document.addEventListener('DOMContentLoaded', () => {
                 alert('비밀번호가 일치하지 않습니다.');
                 return;
             }
-            
-            // DB에 새 유저 정보 저장
-            USERS_DB[newId.toLowerCase()] = {
-                id: newId,
-                pwd: pwd,
-                name: newName
-            };
-            
-            alert(`회원가입이 완료되었습니다!\n환영합니다, ${newName}님.\n이제 가입하신 계정으로 로그인 해주세요.`);
-            toggleAuthMode(false);
+
+            try {
+                const res = await fetch('/api/auth/signup', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ id: newId, pwd, name: newName })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    alert(`회원가입이 완료되었습니다!\n환영합니다, ${newName}님.\n이제 가입하신 계정으로 로그인 해주세요.`);
+                    toggleAuthMode(false);
+                } else {
+                    alert(data.message || '가입에 실패했습니다.');
+                }
+            } catch(e) { console.error('회원가입 실패', e); }
         });
     }
 
     // ── 업로드 화면 ───────────────────────────────────
-    const dropZone  = document.getElementById('drop-zone');
+    let uploadedImages = [];
+    let uploadedFiles = []; // 실제 전송할 파일 객체 배열
+    const dropZone = document.getElementById('drop-zone');
     const panelInput = document.getElementById('panel-input');
-    dropZone.addEventListener('click', () => panelInput.click());
-    dropZone.addEventListener('dragover',  (e) => { e.preventDefault(); dropZone.style.borderColor = '#ffcc00'; });
-    dropZone.addEventListener('dragleave', ()  => { dropZone.style.borderColor = '#ccc'; });
-    dropZone.addEventListener('drop',      (e) => { e.preventDefault(); dropZone.style.borderColor = '#ccc'; });
-    document.getElementById('thumb-add-btn').addEventListener('click', () => panelInput.click());
+    const thumbnailStrip = document.querySelector('.thumbnail-strip');
+    const thumbAddBtn = document.getElementById('thumb-add-btn');
 
-    const descArea  = document.getElementById('desc-area');
+    const renderThumbnails = () => {
+        // 기존 썸네일(미리보기, 플레이스홀더) 제거
+        const existingThumbs = thumbnailStrip.querySelectorAll('.thumb-preview, .thumb-placeholder');
+        existingThumbs.forEach(el => el.remove());
+
+        // 업로드된 이미지 썸네일 새로 추가
+        uploadedImages.forEach((dataUrl) => {
+            const thumb = document.createElement('div');
+            thumb.className = 'thumb-preview';
+            thumb.style.width = '56px';
+            thumb.style.height = '56px';
+            thumb.style.borderRadius = '8px';
+            thumb.style.backgroundImage = `url(${dataUrl})`;
+            thumb.style.backgroundSize = 'cover';
+            thumb.style.backgroundPosition = 'center';
+            thumb.style.flexShrink = '0';
+            thumb.style.cursor = 'pointer';
+            
+            // 썸네일 클릭 시 메인 화면 변경
+            thumb.addEventListener('click', (e) => {
+                e.stopPropagation();
+                dropZone.style.backgroundImage = `url(${dataUrl})`;
+            });
+            thumbnailStrip.insertBefore(thumb, thumbAddBtn);
+        });
+
+        // 3개 미만이면 placeholder 채우기
+        const currentCount = uploadedImages.length;
+        for (let i = 0; i < Math.max(0, 3 - currentCount); i++) {
+            const ph = document.createElement('div');
+            ph.className = 'thumb-placeholder';
+            thumbnailStrip.insertBefore(ph, thumbAddBtn);
+        }
+
+        if (uploadedImages.length > 0) {
+            const latestDataUrl = uploadedImages[uploadedImages.length - 1];
+            dropZone.style.backgroundImage = `url(${latestDataUrl})`;
+            dropZone.style.backgroundSize = 'cover';
+            dropZone.style.backgroundPosition = 'center';
+            dropZone.querySelector('.drop-icon').style.display = 'none';
+            dropZone.querySelector('.drop-main').style.display = 'none';
+            dropZone.querySelector('.drop-sub').style.display = 'none';
+        } else {
+            dropZone.style.backgroundImage = 'none';
+            dropZone.querySelector('.drop-icon').style.display = 'block';
+            dropZone.querySelector('.drop-main').style.display = 'block';
+            dropZone.querySelector('.drop-sub').style.display = 'block';
+        }
+    };
+
+    // 파일 읽어서 배열에 추가하는 함수
+    const handleFiles = (files) => {
+        if (!files || files.length === 0) return;
+        Array.from(files).forEach(file => {
+            uploadedFiles.push(file); // 서버 전송 대비
+            const reader = new FileReader();
+            reader.onload = (ev) => {
+                uploadedImages.push(ev.target.result);
+                renderThumbnails();
+            };
+            reader.readAsDataURL(file);
+        });
+    };
+
+    dropZone.addEventListener('click', () => panelInput.click());
+    panelInput.addEventListener('change', (e) => {
+        handleFiles(e.target.files);
+        panelInput.value = '';
+    });
+
+    dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.style.borderColor = '#ffcc00'; });
+    dropZone.addEventListener('dragleave', () => { dropZone.style.borderColor = '#ccc'; });
+    dropZone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        dropZone.style.borderColor = '#ccc';
+        handleFiles(e.dataTransfer.files);
+    });
+
+    thumbAddBtn.addEventListener('click', () => panelInput.click());
+
+    // 업로드 완료 처리
+    const uploadBtn = document.querySelector('.upload-btn');
+    if (uploadBtn) {
+        uploadBtn.addEventListener('click', async () => {
+            if (uploadedFiles.length === 0) {
+                alert('사진을 먼저 업로드해주세요!');
+                return;
+            }
+            const titleInput = document.querySelector('.field-input').value.trim();
+            const descInput = document.getElementById('desc-area').value.trim();
+
+            if (!titleInput) {
+                alert('제목을 입력해주세요.');
+                return;
+            }
+
+            const currentUser = loggedInUser || 'Guest';
+            
+            const formData = new FormData();
+            formData.append('title', titleInput);
+            formData.append('desc', descInput);
+            formData.append('authorId', currentUser);
+            uploadedFiles.forEach(file => formData.append('images', file));
+
+            uploadBtn.textContent = 'Uploading...';
+            try {
+                const res = await fetch('/api/posts', {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await res.json();
+                
+                if (data.success) {
+                    const newPostId = data.post.id;
+                    POSTS_CONTENT[newPostId] = data.post;
+                    const ukey = currentUser.toLowerCase();
+                    if (USERS_DATA[ukey]) {
+                        USERS_DATA[ukey].postIds.unshift(newPostId);
+                    }
+
+                    // 피드화면에 출력
+                    const feedBody = document.querySelector('.feed-body');
+                    const storyStrip = feedBody ? feedBody.querySelector('.story-strip') : null;
+                    if (storyStrip) {
+                        storyStrip.insertAdjacentHTML('afterend', buildPostCardHTML(newPostId));
+                        renderFeedPost(newPostId);
+                    }
+
+                    alert('업로드 완료! 피드와 프로필에 성공적으로 저장되었습니다.');
+
+                    // 폼 초기화
+                    uploadedImages = [];
+                    uploadedFiles = [];
+                    renderThumbnails();
+                    document.querySelector('.field-input').value = '';
+                    document.getElementById('desc-area').value = '';
+                    document.getElementById('char-count').textContent = '0 / 240 characters';
+
+                    // 메인 화면으로 돌아가기
+                    showScreen('feed');
+                } else {
+                    alert('업로드에 실패했습니다.');
+                }
+            } catch(e) {
+                console.error('업로드 실패', e);
+            } finally {
+                uploadBtn.textContent = '⬆ Upload Comic';
+            }
+        });
+    }
+
+    const descArea = document.getElementById('desc-area');
     const charCount = document.getElementById('char-count');
     descArea.addEventListener('input', () => {
         charCount.textContent = `${descArea.value.length} / 240 characters`;
@@ -672,7 +967,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const input = e.target.closest('.comment-input');
         if (!input) return;
         const postId = input.dataset.postId;
-        const text   = input.value.trim();
+        const text = input.value.trim();
         if (!text) return;
         addComment(postId, loggedInUser || 'Guest', text);
         input.value = '';
@@ -680,4 +975,27 @@ document.addEventListener('DOMContentLoaded', () => {
         const toggleBtn = document.querySelector(`.comment-toggle-btn[data-post-id="${postId}"]`);
         if (toggleBtn) toggleBtn.querySelector('.comment-count').textContent = getAllComments(postId).length;
     });
+
+    // ── 공유 링크 처리 (URL 파라미터 확인) ────────────────
+    const urlParams = new URLSearchParams(window.location.search);
+    const sharedPostId = urlParams.get('post');
+    if (sharedPostId) {
+        showScreen('feed'); // 피드 화면으로 즉시 이동
+        setTimeout(() => {
+            const targetPost = document.querySelector(`.feed-post[data-post-id="${sharedPostId}"]`);
+            if (targetPost) {
+                targetPost.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                // 시각적 피드백 (하이라이트 효과)
+                targetPost.style.transition = 'box-shadow 0.5s, transform 0.5s';
+                targetPost.style.boxShadow = '0 0 20px 5px rgba(255, 204, 0, 0.8)';
+                targetPost.style.transform = 'scale(1.02)';
+                targetPost.style.borderRadius = '16px';
+
+                setTimeout(() => {
+                    targetPost.style.boxShadow = '';
+                    targetPost.style.transform = '';
+                }, 2000);
+            }
+        }, 300); // 렌더링 대기 후 스크롤
+    }
 });

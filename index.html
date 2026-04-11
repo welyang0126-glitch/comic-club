@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="ko">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -9,12 +10,13 @@
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;500;700;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
 </head>
+
 <body>
     <div id="app">
         <!-- 배경 장식 요소들 -->
         <div class="bg-shape shape1"></div>
         <div class="bg-shape shape2"></div>
-        
+
         <!-- 메인 컨텐츠 영역 -->
         <main class="hero-section">
             <div class="hero-content">
@@ -30,12 +32,12 @@
                 <p class="subtitle">
                     Your space to <strong>create</strong>, share, and<br>enjoy comics with friends.
                 </p>
-                
+
                 <button id="start-btn" class="start-btn">
                     START <span class="arrow">➔</span>
                 </button>
             </div>
-            
+
             <div class="footer-icons">
                 <div class="icon-item">
                     <span class="icon">🖌️</span>
@@ -106,7 +108,8 @@
                         </div>
                     </div>
                     <p class="post-title">Neon Drift, Part 14</p>
-                    <p class="post-desc">@GloRich_ · Finally finished the staking in the rain scene! This chapter took me forever 😭✨</p>
+                    <p class="post-desc">@GloRich_ · Finally finished the staking in the rain scene! This chapter took
+                        me forever 😭✨</p>
                     <div class="post-actions">
                         <button class="action-btn like-btn" data-post-id="post-1">
                             <span class="like-icon">🤍</span><span class="like-count">284</span>
@@ -119,7 +122,8 @@
                     <div class="comment-section" id="comments-post-1">
                         <div class="comment-list" id="comment-list-post-1"></div>
                         <div class="comment-input-row">
-                            <input class="comment-input" type="text" placeholder="Add a comment..." data-post-id="post-1">
+                            <input class="comment-input" type="text" placeholder="Add a comment..."
+                                data-post-id="post-1">
                             <button class="comment-submit" data-post-id="post-1">Post</button>
                         </div>
                     </div>
@@ -141,7 +145,8 @@
                         </div>
                     </div>
                     <p class="post-title">DragonStar</p>
-                    <p class="post-desc">@jen_borden · A dragon bright is a dragon right — new episode drops this Friday 🔥</p>
+                    <p class="post-desc">@jen_borden · A dragon bright is a dragon right — new episode drops this Friday
+                        🔥</p>
                     <div class="post-actions">
                         <button class="action-btn like-btn" data-post-id="post-2">
                             <span class="like-icon">🤍</span><span class="like-count">512</span>
@@ -154,7 +159,8 @@
                     <div class="comment-section" id="comments-post-2">
                         <div class="comment-list" id="comment-list-post-2"></div>
                         <div class="comment-input-row">
-                            <input class="comment-input" type="text" placeholder="Add a comment..." data-post-id="post-2">
+                            <input class="comment-input" type="text" placeholder="Add a comment..."
+                                data-post-id="post-2">
                             <button class="comment-submit" data-post-id="post-2">Post</button>
                         </div>
                     </div>
@@ -212,7 +218,8 @@
 
                 <div class="upload-field">
                     <label class="field-label">SHORT DESCRIPTION</label>
-                    <textarea class="field-textarea" id="desc-area" maxlength="240" placeholder="What is this story about?"></textarea>
+                    <textarea class="field-textarea" id="desc-area" maxlength="240"
+                        placeholder="What is this story about?"></textarea>
                     <span class="char-count" id="char-count">0 / 240 characters</span>
                 </div>
 
@@ -239,7 +246,8 @@
                 </div>
 
                 <button class="upload-btn">⬆ Upload Comic</button>
-                <p class="legal-text">BY UPLOADING, YOU AGREE TO THE<br><a href="#">CREATIVE COMMUNITY GUIDELINES</a></p>
+                <p class="legal-text">BY UPLOADING, YOU AGREE TO THE<br><a href="#">CREATIVE COMMUNITY GUIDELINES</a>
+                </p>
             </div>
 
             <nav class="bottom-nav" data-screen="upload">
@@ -375,7 +383,8 @@
                     <div class="pf-option locked" data-group="badge" data-value="shield" data-item="Character Pack">
                         <span class="opt-emoji">🔒</span>
                     </div>
-                    <div class="pf-option locked" data-group="badge" data-value="crown" data-item="Masterclass: Visual Storytelling">
+                    <div class="pf-option locked" data-group="badge" data-value="crown"
+                        data-item="Masterclass: Visual Storytelling">
                         <span class="opt-emoji">🔒</span>
                     </div>
                 </div>
@@ -437,6 +446,18 @@
             </div>
         </div>
 
+        <!-- 웹툰 뷰어 화면 -->
+        <div id="webtoon-viewer-screen" class="webtoon-viewer-screen hidden">
+            <div class="webtoon-topbar">
+                <button id="webtoon-back-btn" class="webtoon-back-btn">← Back</button>
+                <span class="webtoon-title" id="webtoon-title">Webtoon</span>
+                <span></span>
+            </div>
+            <div class="webtoon-content" id="webtoon-content">
+                <!-- 이미지들이 세로로 삽입됨 -->
+            </div>
+        </div>
+
         <!-- 내 프로필 모달 -->
         <div id="my-profile-modal" class="modal-overlay hidden" role="dialog" aria-modal="true">
             <div class="my-profile-modal-card">
@@ -477,7 +498,7 @@
         <div id="login-modal" class="modal-overlay hidden">
             <div class="modal-container">
                 <button id="close-modal" class="close-btn">&times;</button>
-                
+
                 <!-- 로그인 컨텐츠 -->
                 <div id="login-section">
                     <h2>Login</h2>
@@ -521,14 +542,16 @@
                             <label for="signup-pwd-confirm">Confirm Password</label>
                             <input type="password" id="signup-pwd-confirm" placeholder="••••••••" required>
                         </div>
-                        <button type="submit" class="submit-btn" style="color: white; background: #222;">Create Account</button>
+                        <button type="submit" class="submit-btn" style="color: white; background: #222;">Create
+                            Account</button>
                     </form>
                     <p class="signup-prompt">Already have an account? <a href="#" id="go-login">Login</a></p>
                 </div>
             </div>
         </div>
     </div>
-    
+
     <script src="main.js"></script>
 </body>
+
 </html>
