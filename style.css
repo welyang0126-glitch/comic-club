@@ -1148,7 +1148,7 @@ body {
     width: 90px;
     height: 90px;
     border-radius: 50%;
-    background: #1a1a2e;
+    background: transparent;
     border: 4px solid #ffcc00;
     display: flex;
     align-items: center;
@@ -1156,6 +1156,7 @@ body {
     position: relative;
     margin-bottom: 0.7rem;
     transition: all 0.3s ease;
+    overflow: hidden;
 }
 
 .profile-avatar-ring.shape-rounded-ring {
@@ -1186,8 +1187,16 @@ body {
 }
 
 .profile-avatar-inner {
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     font-size: 2.5rem;
     line-height: 1;
+    background-size: cover;
+    background-position: center;
 }
 
 .avatar-badge {
