@@ -446,7 +446,7 @@ document.addEventListener('DOMContentLoaded', () => {
             ${gender === 'boy' ? '<path d="M22 45 C15 10, 85 10, 78 45 C70 25, 30 25, 22 45" fill="#2c1b18" />' : '<path d="M22 45 C30 20, 70 20, 78 45 C75 30, 25 30, 22 45" fill="#2c1b18" />'}
         </svg>
         `.trim().replace(/\n/g, '').replace(/\s+/g, ' ');
-        return \`url('data:image/svg+xml;utf8,\${encodeURIComponent(svg)}')\`;
+        return `url('data:image/svg+xml;utf8,${encodeURIComponent(svg)}')`;
     }
 
     // ── 아바타 미리보기 적용 ───────────────────────────
