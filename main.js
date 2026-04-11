@@ -925,7 +925,7 @@ const initApp = () => {
             if (data.success) {
                 loginModal.classList.add('hidden');
                 loginForm.reset();
-                loggedInUser = data.user.name;
+                loggedInUser = data.user.id; // Fix: Use ID instead of name for data mapping
 
                 // 로그인 유저 정보로 UI 업데이트
                 const profileNameEl = document.querySelector('.profile-name');
