@@ -2059,3 +2059,143 @@ body {
         padding: 1rem 3rem;
     }
 }
+
+/* ===== UPLOAD PREVIEW MODAL ===== */
+.upload-preview-modal {
+    position: fixed;
+    inset: 0;
+    background: #1a1a1a;
+    display: flex;
+    flex-direction: column;
+    z-index: 300;
+    font-family: 'Outfit', sans-serif;
+    animation: fadeInUp 0.3s ease;
+}
+
+@keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(30px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.upload-preview-modal.hidden {
+    display: none;
+}
+
+.preview-topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1rem 1.2rem;
+    background: #111;
+    border-bottom: 1px solid #333;
+}
+
+.preview-back-btn {
+    background: none;
+    border: none;
+    font-family: 'Outfit', sans-serif;
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: #fff;
+    cursor: pointer;
+    transition: color 0.2s;
+}
+
+.preview-back-btn:hover {
+    color: #ffcc00;
+}
+
+.preview-title-label {
+    font-weight: 900;
+    font-size: 1rem;
+    color: #fff;
+    letter-spacing: 0.05em;
+}
+
+.preview-body {
+    flex: 1;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    background: #000;
+}
+
+.preview-meta {
+    width: 100%;
+    max-width: 600px;
+    padding: 1.2rem 1rem;
+    background: linear-gradient(180deg, #222 0%, #000 100%);
+}
+
+.preview-comic-title {
+    font-size: 1.3rem;
+    font-weight: 900;
+    color: #fff;
+    margin-bottom: 0.4rem;
+}
+
+.preview-comic-desc {
+    font-size: 0.85rem;
+    color: #aaa;
+    line-height: 1.5;
+}
+
+.preview-images {
+    width: 100%;
+    max-width: 600px;
+    display: flex;
+    flex-direction: column;
+}
+
+.preview-images img {
+    width: 100%;
+    display: block;
+    margin: 0;
+    padding: 0;
+}
+
+.preview-bottom {
+    display: flex;
+    gap: 0.8rem;
+    padding: 1rem 1.2rem;
+    background: #111;
+    border-top: 1px solid #333;
+}
+
+.preview-cancel-btn {
+    flex: 1;
+    padding: 0.85rem;
+    background: #333;
+    color: #fff;
+    border: none;
+    border-radius: 12px;
+    font-family: 'Outfit', sans-serif;
+    font-size: 0.95rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.preview-cancel-btn:hover {
+    background: #444;
+}
+
+.preview-confirm-btn {
+    flex: 2;
+    padding: 0.85rem;
+    background: #ffcc00;
+    color: #111;
+    border: none;
+    border-radius: 12px;
+    font-family: 'Outfit', sans-serif;
+    font-size: 0.95rem;
+    font-weight: 900;
+    cursor: pointer;
+    transition: background 0.2s, transform 0.1s;
+}
+
+.preview-confirm-btn:hover {
+    background: #e6b800;
+    transform: translateY(-1px);
+}

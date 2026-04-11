@@ -1010,31 +1010,62 @@ document.addEventListener('DOMContentLoaded', () => {
 
     thumbAddBtn.addEventListener('click', () => panelInput.click());
 
-    // 업로드 완료 처리
+    // 업로드 완료 처리 — 미리보기 모달 먼저 표시
     const uploadBtn = document.querySelector('.upload-btn');
+    const previewModal = document.getElementById('upload-preview-modal');
+    const previewBackBtn = document.getElementById('preview-back-btn');
+    const previewCancelBtn = document.getElementById('preview-cancel-btn');
+    const previewConfirmBtn = document.getElementById('preview-confirm-btn');
+
     if (uploadBtn) {
-        uploadBtn.addEventListener('click', async () => {
+        uploadBtn.addEventListener('click', () => {
             if (uploadedFiles.length === 0) {
                 alert('사진을 먼저 업로드해주세요!');
                 return;
             }
             const titleInput = document.querySelector('.field-input').value.trim();
-            const descInput = document.getElementById('desc-area').value.trim();
-
             if (!titleInput) {
                 alert('제목을 입력해주세요.');
                 return;
             }
+            const descInput = document.getElementById('desc-area').value.trim();
 
+            // 미리보기 모달에 정보 채우기
+            document.getElementById('preview-comic-title').textContent = titleInput;
+            document.getElementById('preview-comic-desc').textContent = descInput || 'No description';
+
+            const previewImagesEl = document.getElementById('preview-images');
+            previewImagesEl.innerHTML = '';
+            uploadedImages.forEach(dataUrl => {
+                const img = document.createElement('img');
+                img.src = dataUrl;
+                previewImagesEl.appendChild(img);
+            });
+
+            // 미리보기 모달 열기
+            previewModal.classList.remove('hidden');
+        });
+    }
+
+    // 미리보기 → 뒤로가기 / 수정
+    if (previewBackBtn) previewBackBtn.addEventListener('click', () => previewModal.classList.add('hidden'));
+    if (previewCancelBtn) previewCancelBtn.addEventListener('click', () => previewModal.classList.add('hidden'));
+
+    // 미리보기 → 최종 업로드
+    if (previewConfirmBtn) {
+        previewConfirmBtn.addEventListener('click', async () => {
+            const titleInput = document.querySelector('.field-input').value.trim();
+            const descInput = document.getElementById('desc-area').value.trim();
             const currentUser = loggedInUser || 'Guest';
-            
+
             const formData = new FormData();
             formData.append('title', titleInput);
             formData.append('desc', descInput);
             formData.append('authorId', currentUser);
             uploadedFiles.forEach(file => formData.append('images', file));
 
-            uploadBtn.textContent = 'Uploading...';
+            previewConfirmBtn.textContent = 'Publishing...';
+            previewConfirmBtn.disabled = true;
             try {
                 const res = await fetch('/api/posts', {
                     method: 'POST',
@@ -1058,7 +1089,10 @@ document.addEventListener('DOMContentLoaded', () => {
                         renderFeedPost(newPostId);
                     }
 
-                    alert('업로드 완료! 피드와 프로필에 성공적으로 저장되었습니다.');
+                    // 모달 닫기
+                    previewModal.classList.add('hidden');
+
+                    alert('업로드 완료! 피드에 성공적으로 게시되었습니다. 🎉');
 
                     // 폼 초기화
                     uploadedImages = [];
@@ -1068,7 +1102,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     document.getElementById('desc-area').value = '';
                     document.getElementById('char-count').textContent = '0 / 240 characters';
 
-                    // 메인 화면으로 돌아가기
+                    // 피드 화면으로 이동
                     showScreen('feed');
                 } else {
                     alert('업로드에 실패했습니다.');
@@ -1076,7 +1110,8 @@ document.addEventListener('DOMContentLoaded', () => {
             } catch(e) {
                 console.error('업로드 실패', e);
             } finally {
-                uploadBtn.textContent = '⬆ Upload Comic';
+                previewConfirmBtn.textContent = '⬆ Publish to Feed';
+                previewConfirmBtn.disabled = false;
             }
         });
     }

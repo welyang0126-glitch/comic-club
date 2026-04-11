@@ -258,6 +258,26 @@
             </nav>
         </div>
 
+        <!-- 업로드 미리보기 모달 -->
+        <div id="upload-preview-modal" class="upload-preview-modal hidden">
+            <div class="preview-topbar">
+                <button class="preview-back-btn" id="preview-back-btn">← Back</button>
+                <span class="preview-title-label">Preview</span>
+                <span></span>
+            </div>
+            <div class="preview-body" id="preview-body">
+                <div class="preview-meta">
+                    <p class="preview-comic-title" id="preview-comic-title"></p>
+                    <p class="preview-comic-desc" id="preview-comic-desc"></p>
+                </div>
+                <div class="preview-images" id="preview-images"></div>
+            </div>
+            <div class="preview-bottom">
+                <button class="preview-cancel-btn" id="preview-cancel-btn">✏️ Edit</button>
+                <button class="preview-confirm-btn" id="preview-confirm-btn">⬆ Publish to Feed</button>
+            </div>
+        </div>
+
         <!-- 하트 상점 화면 -->
         <div id="shop-screen" class="shop-screen hidden">
             <div class="shop-header">
