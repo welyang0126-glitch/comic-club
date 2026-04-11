@@ -713,51 +713,66 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     if (checkIdBtn) {
-        checkIdBtn.addEventListener('click', () => {
+        checkIdBtn.addEventListener('click', async () => {
             const idValue = signupId.value.trim();
             if (!idValue) {
                 idCheckMsg.textContent = '아이디를 입력해주세요.';
                 idCheckMsg.className = 'check-msg error';
                 return;
             }
-            if (USERS_DB[idValue.toLowerCase()]) {
-                idCheckMsg.textContent = '이미 사용 중인 아이디입니다.';
-                idCheckMsg.className = 'check-msg error';
-                isIdChecked = false;
-            } else {
-                idCheckMsg.textContent = '사용 가능한 아이디입니다.';
-                idCheckMsg.className = 'check-msg success';
-                isIdChecked = true;
+            try {
+                const res = await fetch(`/api/auth/check?id=${idValue}`);
+                const data = await res.json();
+                if (data.exists) {
+                    idCheckMsg.textContent = '이미 사용 중인 아이디입니다.';
+                    idCheckMsg.className = 'check-msg error';
+                    isIdChecked = false;
+                } else {
+                    idCheckMsg.textContent = '사용 가능한 아이디입니다.';
+                    idCheckMsg.className = 'check-msg success';
+                    isIdChecked = true;
+                }
+            } catch(e) {
+                console.error('ID check failed', e);
             }
         });
     }
 
-    loginForm.addEventListener('submit', (e) => {
+    loginForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         const id = document.getElementById('email').value.trim();
         const pwd = document.getElementById('password').value;
 
-        const user = USERS_DB[id.toLowerCase()];
+        try {
+            const res = await fetch('/api/auth/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id, password: pwd })
+            });
+            const data = await res.json();
 
-        if (user && user.pwd === pwd) {
-            loginModal.classList.add('hidden');
-            loginForm.reset();
-            loggedInUser = user.name;
+            if (data.success) {
+                loginModal.classList.add('hidden');
+                loginForm.reset();
+                loggedInUser = data.user.name;
 
-            // 로그인 유저 정보로 UI 업데이트
-            const profileNameEl = document.querySelector('.profile-name');
-            if (profileNameEl) profileNameEl.textContent = user.name;
+                // 로그인 유저 정보로 UI 업데이트
+                const profileNameEl = document.querySelector('.profile-name');
+                if (profileNameEl) profileNameEl.textContent = data.user.name;
 
-            const initial = user.name.charAt(0).toUpperCase();
-            const userData = USERS_DATA[user.name.toLowerCase()];
-            const color = userData ? userData.color : '#ffcc00';
-            const avatarEmojiEl = document.getElementById('avatar-emoji');
-            if (avatarEmojiEl) avatarEmojiEl.textContent = initial;
-            updateAllAvatarBtns(initial, color);
+                const initial = data.user.initial || data.user.name.charAt(0).toUpperCase();
+                const color = data.user.color || '#ffcc00';
+                const avatarEmojiEl = document.getElementById('avatar-emoji');
+                if (avatarEmojiEl) avatarEmojiEl.textContent = initial;
+                updateAllAvatarBtns(initial, color);
 
-            showScreen('upload');
-        } else {
-            alert('아이디가 존재하지 않거나 비밀번호가 일치하지 않습니다.');
+                showScreen('upload');
+            } else {
+                alert('아이디가 존재하지 않거나 비밀번호가 일치하지 않습니다.');
+            }
+        } catch(e) {
+            console.error('Login failed', e);
+            alert('로그인 처리 중 오류가 발생했습니다.');
         }
     });
 
