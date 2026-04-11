@@ -239,9 +239,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const purchasedItems = new Set();   // 구매한 아이템 이름 목록
 
     // 선택된 스타일 (적용 전)
-    let pendingStyle = { shape: 'circle', badge: 'star', effect: 'none', gender: 'boy', skin: 'white' };
+    let pendingStyle = { shape: 'circle', badge: 'star', effect: 'none', gender: 'boy', skin: 'white', hair: 'black' };
     // 실제 적용된 스타일
-    let appliedStyle = { shape: 'circle', badge: 'star', effect: 'none', gender: 'boy', skin: 'white' };
+    let appliedStyle = { shape: 'circle', badge: 'star', effect: 'none', gender: 'boy', skin: 'white', hair: 'black' };
 
     const badgeEmojis = { star: '⭐', fire: '🔥', shield: '🛡️', crown: '👑' };
 
@@ -385,7 +385,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // 아바타 색상 & 이니셜 (SVG 반영)
         const avatarEl = document.getElementById('mpm-avatar');
-        avatarEl.style.backgroundImage = getAvatarSVG(appliedStyle.gender, appliedStyle.skin);
+        avatarEl.style.backgroundImage = getAvatarSVG(appliedStyle.gender, appliedStyle.skin, appliedStyle.hair);
         avatarEl.style.borderColor = color;
 
         document.getElementById('mpm-name').textContent = loggedInUser;
@@ -420,19 +420,26 @@ document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('upload-heart-count').textContent = `${hearts} ❤️`;
     }
 
-    function getAvatarSVG(gender, skinTone) {
+    function getAvatarSVG(gender, skinTone, hairTone) {
         const skinColors = {
             'white': '#ffd1b3',
             'yellow': '#f5d08e',
             'brown': '#b37a4c',
             'black': '#50301a'
         };
+        const hairColors = {
+            'blonde': '#ffcc00',
+            'red': '#d32f2f',
+            'black': '#2c1b18',
+            'white': '#ffffff'
+        };
         const c = skinColors[skinTone] || skinColors['white'];
+        const hc = hairColors[hairTone] || hairColors['black'];
         
         const svg = `
-        <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-            <circle cx="50" cy="50" r="50" fill="#a4e5d9" />
-            ${gender === 'girl' ? '<path d="M25 40 Q15 90 25 100 L75 100 Q85 90 75 40 Z" fill="#2c1b18" />' : ''}
+        <svg viewBox="15 15 70 70" xmlns="http://www.w3.org/2000/svg">
+            <rect x="0" y="0" width="100" height="100" fill="#a4e5d9" />
+            ${gender === 'girl' ? `<path d="M25 40 Q15 90 25 100 L75 100 Q85 90 75 40 Z" fill="${hc}" />` : ''}
             <rect x="42" y="60" width="16" height="15" fill="${c}" />
             <rect x="42" y="60" width="16" height="5" fill="rgba(0,0,0,0.1)" />
             <path d="M 20 100 C 20 70, 80 70, 80 100" fill="#ffffff" />
@@ -443,7 +450,7 @@ document.addEventListener('DOMContentLoaded', () => {
             <circle cx="37" cy="46" r="3" fill="#ff7da7" opacity="0.4" />
             <circle cx="63" cy="46" r="3" fill="#ff7da7" opacity="0.4" />
             <path d="M 45 49 Q 50 54 55 49" stroke="#111" stroke-width="2" fill="none" stroke-linecap="round" />
-            ${gender === 'boy' ? '<path d="M22 45 C15 10, 85 10, 78 45 C70 25, 30 25, 22 45" fill="#2c1b18" />' : '<path d="M22 45 C30 20, 70 20, 78 45 C75 30, 25 30, 22 45" fill="#2c1b18" />'}
+            ${gender === 'boy' ? `<path d="M22 45 C15 10, 85 10, 78 45 C70 25, 30 25, 22 45" fill="${hc}" />` : `<path d="M22 45 C30 20, 70 20, 78 45 C75 30, 25 30, 22 45" fill="${hc}" />`}
         </svg>
         `.trim().replace(/\n/g, '').replace(/\s+/g, ' ');
         return `url('data:image/svg+xml;utf8,${encodeURIComponent(svg)}')`;
@@ -456,7 +463,11 @@ document.addEventListener('DOMContentLoaded', () => {
         const inner = document.getElementById('avatar-inner');
 
         // SVG 적용
-        inner.style.backgroundImage = getAvatarSVG(style.gender, style.skin);
+        inner.style.backgroundImage = getAvatarSVG(style.gender, style.skin, style.hair);
+
+        // 글자 제거
+        const avatarEmojiEl = document.getElementById('avatar-emoji');
+        if (avatarEmojiEl) avatarEmojiEl.textContent = '';
 
         // 기존 클래스 초기화
         ring.className = 'profile-avatar-ring';
@@ -667,7 +678,7 @@ document.addEventListener('DOMContentLoaded', () => {
         ['feed-avatar-btn', 'upload-avatar-btn', 'shop-avatar-btn'].forEach(id => {
             const btn = document.getElementById(id);
             if (!btn) return;
-            btn.style.backgroundImage = getAvatarSVG(appliedStyle.gender, appliedStyle.skin);
+            btn.style.backgroundImage = getAvatarSVG(appliedStyle.gender, appliedStyle.skin, appliedStyle.hair);
             btn.style.backgroundSize = 'cover';
             btn.style.backgroundPosition = 'center';
             btn.style.borderColor = color;
@@ -683,8 +694,8 @@ document.addEventListener('DOMContentLoaded', () => {
         hearts = 108;
         loggedInUser = 'Guest';
         purchasedItems.clear();
-        pendingStyle = { shape: 'circle', badge: 'star', effect: 'none', gender: 'boy', skin: 'white' };
-        appliedStyle = { shape: 'circle', badge: 'star', effect: 'none', gender: 'boy', skin: 'white' };
+        pendingStyle = { shape: 'circle', badge: 'star', effect: 'none', gender: 'boy', skin: 'white', hair: 'black' };
+        appliedStyle = { shape: 'circle', badge: 'star', effect: 'none', gender: 'boy', skin: 'white', hair: 'black' };
         updateAllAvatarBtns('?', '#ccc');
     }
 
@@ -797,7 +808,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const initial = data.user.initial || data.user.name.charAt(0).toUpperCase();
                 const color = data.user.color || '#ffcc00';
                 const avatarEmojiEl = document.getElementById('avatar-emoji');
-                if (avatarEmojiEl) avatarEmojiEl.textContent = initial;
+                if (avatarEmojiEl) avatarEmojiEl.textContent = '';
                 updateAllAvatarBtns(initial, color);
 
                 showScreen('upload');
