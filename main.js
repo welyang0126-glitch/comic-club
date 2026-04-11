@@ -214,7 +214,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         list.innerHTML = comments.map(c => `
             <div class="comment-item">
-                <div class="comment-avatar" style="background:${c.color}">${c.author.replace('@', '').charAt(0).toUpperCase()}</div>
+                <div class="comment-avatar" style="${c.avatar ? `background-image: ${getAvatarSVG(c.avatar.gender, c.avatar.skin, c.avatar.hair)}; background-size: cover; background-position: center; border: 2px solid ${c.color};` : `background:${c.color}`}">${c.avatar ? '' : c.author.replace('@', '').charAt(0).toUpperCase()}</div>
                 <div class="comment-body">
                     <p class="comment-author">${c.author}</p>
                     <p class="comment-text">${c.text}</p>

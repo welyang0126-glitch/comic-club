@@ -64,6 +64,19 @@ async function initDB() {
             await pool.query("INSERT INTO users (id, data) VALUES ($1, $2)", ['kevin', defaultUser]);
             console.log("Default admin 'kevin' seeded into Postgres.");
         }
+
+        // 기본 포스트 시드 로직
+        const checkPosts = await pool.query("SELECT * FROM posts WHERE id = 'post-1'");
+        if (checkPosts.rows.length === 0) {
+            const post1 = {
+                id: 'post-1', title: 'Neon Drift, Part 14', authorId: 'glo_rich', desc: 'Finally finished the shading in the rain scene! This chapter took me forever 😭✨', baseLikes: 284, likes: {}, comments: []
+            };
+            const post2 = {
+                id: 'post-2', title: 'Dragonstar', authorId: 'jen_borden', desc: 'Character concept art for the upcoming reboot.', baseLikes: 820, likes: {}, comments: []
+            };
+            await pool.query("INSERT INTO posts (id, data) VALUES ($1, $2)", ['post-1', post1]);
+            await pool.query("INSERT INTO posts (id, data) VALUES ($1, $2)", ['post-2', post2]);
+        }
     } catch (err) {
         console.error("DB Initialization Error:", err);
     }
@@ -303,7 +316,8 @@ app.post('/api/posts/:id/comments', async (req, res) => {
         author: handle,
         text,
         time: 'Just now',
-        color: color
+        color: color,
+        avatar: user ? user.avatar : null
     });
 
     if (pool) {
