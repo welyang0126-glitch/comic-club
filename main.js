@@ -587,24 +587,6 @@ const initApp = () => {
             if (['feed', 'upload', 'shop', 'profile'].includes(target)) showScreen(target);
         }
 
-        // 구매 버튼
-        const buyBtn = e.target.closest('.buy-btn');
-        if (buyBtn) {
-            const card = buyBtn.closest('[data-price]');
-            if (!card) return;
-            const price = parseInt(card.dataset.price);
-            const name = card.dataset.name;
-            if (purchasedItems.has(name)) {
-                alert(`You already own "${name}"!`);
-            } else if (hearts < price) {
-                alert(`Not enough hearts! You need ❤️ ${price} but have ❤️ ${hearts}.`);
-            } else {
-                hearts -= price;
-                purchasedItems.add(name);
-                updateHeartDisplays();
-                alert(`✅ Purchased "${name}"! Remaining: ❤️ ${hearts}`);
-            }
-        }
 
         // 옵션 선택 (프로필)
         const pfOpt = e.target.closest('.pf-option:not(.locked)');
