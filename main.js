@@ -692,14 +692,20 @@ const initApp = () => {
             .then(res => res.json())
             .then(data => {
                 if (data.success) {
-                    const postCard = document.querySelector(`.feed-post[data-post-id="${postId}"]`);
-                    if (postCard) postCard.remove();
+                    const postCards = document.querySelectorAll(`.feed-post[data-post-id="${postId}"]`);
+                    postCards.forEach(card => card.remove());
                     delete POSTS_CONTENT[postId];
                     // delete from user array
                     const ukey = loggedInUser.toLowerCase();
                     if (USERS_DATA[ukey]) {
                         USERS_DATA[ukey].postIds = USERS_DATA[ukey].postIds.filter(id => id !== postId);
                         if (document.getElementById('profile-screen')) renderProfile();
+                        
+                        // Update comic count on 'user-profile-screen' if visible
+                        if (!document.getElementById('user-profile-screen').classList.contains('hidden')) {
+                            const countEl = document.getElementById('up-postcount');
+                            if (countEl) countEl.textContent = `${USERS_DATA[ukey].postIds.length} comics`;
+                        }
                     }
                 } else {
                     alert(data.error || '삭제에 실패했습니다.');
