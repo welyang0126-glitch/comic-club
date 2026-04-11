@@ -275,20 +275,27 @@ document.addEventListener('DOMContentLoaded', () => {
                     <p class="post-time">${content.time}</p>
                 </div>
             </div>
-            <div class="post-image ${content.imageClass}" ${content.imageUrl ? `style="background-image: url(${content.imageUrl}); background-size: cover; background-position: center; cursor: pointer;"` : 'style="cursor: pointer;"'} data-webtoon-trigger="${postId}">
-                <div class="post-image-inner">
-                    <p class="comic-label">${content.label}</p>
-                    <p class="comic-scene">${content.scene}</p>
-                </div>
+            <div class="post-images-container" style="display: flex; flex-direction: column; cursor: pointer;" data-webtoon-trigger="${postId}">
+                ${(content.imageUrls && content.imageUrls.length > 0)
+                  ? content.imageUrls.map(url => `
+                      <img src="${url}" class="webtoon-feed-img" style="width: 100%; display: block; filter: saturate(1.2) contrast(1.1); box-shadow: 0 4px 15px rgba(0,0,0,0.5);" />
+                    `).join('')
+                  : `<div class="post-image ${content.imageClass}" ${content.imageUrl ? `style="background-image: url(${content.imageUrl}); background-size: cover; background-position: center;"` : ''}>
+                        <div class="post-image-inner">
+                            <p class="comic-label">${content.label || ''}</p>
+                            <p class="comic-scene">${content.scene || ''}</p>
+                        </div>
+                     </div>`
+                }
             </div>
-            <p class="post-title">${content.title}</p>
+            <p class="post-title" style="margin-top: 1rem;">${content.title}</p>
             <p class="post-desc">${author.handle} · ${content.desc}</p>
             <div class="post-actions">
                 <button class="action-btn like-btn" data-post-id="${postId}">
-                    <span class="like-icon">🤍</span><span class="like-count">${POST_DEFAULTS[postId]?.baseLikes ?? 0}</span>
+                    <span class="like-icon">🤍</span><span class="like-count">${content.baseLikes || 0}</span>
                 </button>
                 <button class="action-btn comment-toggle-btn" data-post-id="${postId}">
-                    💬 <span class="comment-count">${(POST_DEFAULTS[postId]?.baseComments?.length ?? 0)}</span>
+                    💬 <span class="comment-count">${content.comments ? content.comments.length : 0}</span>
                 </button>
                 <button class="action-btn">↗ Share</button>
             </div>
