@@ -1,4 +1,4 @@
-document.addEventListener('DOMContentLoaded', () => {
+const initApp = () => {
     // --- 🎵 귀여운 반응형 소리 (Web Audio API) ---
     let audioCtx;
     function playCuteSound() {
@@ -1450,4 +1450,11 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-});
+};
+
+// 페이지 로드 상태에 따라 즉시 실행 또는 이벤트 대기
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initApp);
+} else {
+    initApp();
+}
