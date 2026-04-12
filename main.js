@@ -110,14 +110,16 @@ const initApp = () => {
 
     // ── 오프라인 fallback 데이터 ───────────────────────────
     const FALLBACK_USERS = {
-        'kevin': { name: 'Kevin', handle: '@Kevin', color: '#f4c542', initial: 'K', bio: 'Admin · Comic Club founder ⚡', followers: 530, postIds: [] },
+        'kevin': { name: 'Kevin', handle: '@Kevin', color: '#f4c542', initial: 'K', bio: 'Admin · Comic Club founder ⚡', followers: 530, postIds: ['kv-1'] },
         'alex':  { name: 'Alex',  handle: '@Alex',  color: '#e07bbd', initial: 'A', bio: 'Aspiring comic writer 🎨',      followers: 320, postIds: [] },
         'juno':  { name: 'Juno',  handle: '@Juno',  color: '#7bc8e0', initial: 'J', bio: 'Manga fan & aspiring artist',   followers: 180, postIds: [] },
         'sam':   { name: 'Sam',   handle: '@Sam',   color: '#a0e07b', initial: 'S', bio: 'Comic collector & critic',      followers: 240, postIds: [] },
         'rita':  { name: 'Rita',  handle: '@Rita',  color: '#e07b7b', initial: 'R', bio: 'Webtoon enthusiast 🌸',         followers: 160, postIds: [] },
     };
 
-    const FALLBACK_POSTS = {};
+    const FALLBACK_POSTS = {
+        'kv-1': { title: 'Comic Club Weekly Spotlight ⚡', authorId: 'kevin', imageClass: 'kevin-gold', label: '⚡ COMIC CLUB WEEKLY', scene: "This week's top picks — curated by the admin!", desc: 'Welcome to Comic Club! Upload your comics and share with the community 🎉', time: '1h ago', baseLikes: 0, likes: {}, comments: [] },
+    };
 
     // ── 삭제된 포스트 localStorage 영속화 ─────────────────
     function getDeletedPosts() {
@@ -128,6 +130,17 @@ const initApp = () => {
         const deleted = getDeletedPosts();
         deleted.add(postId);
         localStorage.setItem('comicclub_deleted_posts', JSON.stringify([...deleted]));
+    }
+
+    // ── 로컬 업로드 포스트 localStorage 영속화 ────────────
+    function getLocalPosts() {
+        try { return JSON.parse(localStorage.getItem('comicclub_local_posts') || '[]'); }
+        catch { return []; }
+    }
+    function saveLocalPost(post) {
+        const posts = getLocalPosts().filter(p => p.id !== post.id);
+        posts.unshift(post);
+        localStorage.setItem('comicclub_local_posts', JSON.stringify(posts));
     }
 
     // ── localStorage 버전 체크: 구버전 캐시 강제 초기화 ──────
@@ -155,19 +168,30 @@ const initApp = () => {
             POSTS_CONTENT = FALLBACK_POSTS;
         }
 
-        // 삭제된 포스트 필터링 — POSTS_CONTENT에서 제거하고 정적 DOM 요소도 숨김
+        // localStorage에 저장된 로컬 업로드 포스트 병합
+        getLocalPosts().forEach(post => {
+            POSTS_CONTENT[post.id] = post;
+            const ukey = post.authorId.toLowerCase();
+            if (USERS_DATA[ukey] && !USERS_DATA[ukey].postIds.includes(post.id)) {
+                USERS_DATA[ukey].postIds.unshift(post.id);
+            }
+        });
+
+        // 삭제된 포스트 필터링 — POSTS_CONTENT에서 제거
         getDeletedPosts().forEach(postId => {
             delete POSTS_CONTENT[postId];
             document.querySelectorAll(`.feed-post[data-post-id="${postId}"]`).forEach(el => el.remove());
         });
 
-        // 피드에 업로드된 커스텀 포스트 동적 삽입 (백엔드 있을 때만)
+        // 모든 포스트를 피드에 동적 주입 (최신 업로드가 위에 오도록 reverse)
         const feedBody = document.querySelector('.feed-body');
-        const customPosts = Object.keys(POSTS_CONTENT).filter(id => POSTS_CONTENT[id].imageClass === 'custom-upload');
-        if (feedBody && customPosts.length > 0) {
-            const htmls = customPosts.map(buildPostCardHTML);
+        const allPostIds = Object.keys(POSTS_CONTENT).reverse();
+        if (feedBody && allPostIds.length > 0) {
             const storyContainer = feedBody.querySelector('.story-container');
-            if (storyContainer) storyContainer.insertAdjacentHTML('afterend', htmls.join(''));
+            if (storyContainer) {
+                const htmls = allPostIds.map(buildPostCardHTML).filter(Boolean);
+                storyContainer.insertAdjacentHTML('afterend', htmls.join(''));
+            }
         }
 
         initFeed();
@@ -1301,7 +1325,47 @@ const initApp = () => {
                     alert('업로드에 실패했습니다.');
                 }
             } catch(e) {
-                console.error('업로드 실패', e);
+                // 오프라인 fallback — 로컬 포스트로 즉시 처리
+                const ukey = currentUser.toLowerCase();
+                const author = USERS_DATA[ukey];
+                if (author) {
+                    const newPostId = `local-${Date.now()}`;
+                    const newPost = {
+                        id: newPostId,
+                        authorId: ukey,
+                        title: titleInput,
+                        desc: descInput || '',
+                        imageUrls: [...uploadedImages],
+                        imageClass: 'custom-upload',
+                        time: 'Just now',
+                        baseLikes: 0,
+                        likes: {},
+                        comments: []
+                    };
+                    POSTS_CONTENT[newPostId] = newPost;
+                    USERS_DATA[ukey].postIds.unshift(newPostId);
+                    saveLocalPost(newPost);
+
+                    const feedBody2 = document.querySelector('.feed-body');
+                    const storyContainer2 = feedBody2 ? feedBody2.querySelector('.story-container') : null;
+                    if (storyContainer2) {
+                        storyContainer2.insertAdjacentHTML('afterend', buildPostCardHTML(newPostId));
+                        renderFeedPost(newPostId);
+                    }
+
+                    previewModal.classList.add('hidden');
+                    alert('업로드 완료! 피드에 성공적으로 게시되었습니다. 🎉');
+
+                    uploadedImages = [];
+                    uploadedFiles = [];
+                    renderThumbnails();
+                    document.querySelector('.field-input').value = '';
+                    document.getElementById('desc-area').value = '';
+                    document.getElementById('char-count').textContent = '0 / 240 characters';
+                    showScreen('feed');
+                } else {
+                    console.error('업로드 실패', e);
+                }
             } finally {
                 clearInterval(progressInterval);
                 progressBar.style.width = '100%';
