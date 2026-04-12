@@ -295,32 +295,19 @@ const initApp = () => {
     const allScreens = ['feed-screen', 'upload-screen', 'shop-screen', 'profile-screen', 'user-profile-screen'];
 
     function showScreen(name) {
-        const currentScreen = allScreens.find(id => !document.getElementById(id).classList.contains('hidden'));
-        if (currentScreen) {
-            document.getElementById(currentScreen).classList.add('screen-transition-exit');
-            setTimeout(() => {
-                document.getElementById(currentScreen).classList.remove('screen-transition-exit');
-                document.getElementById(currentScreen).classList.add('hidden');
-            }, 180);
-        } else {
-            allScreens.forEach(id => document.getElementById(id).classList.add('hidden'));
-        }
+        allScreens.forEach(id => document.getElementById(id).classList.add('hidden'));
 
         const map = { feed: 'feed-screen', upload: 'upload-screen', shop: 'shop-screen', profile: 'profile-screen' };
         if (map[name]) {
-            setTimeout(() => {
-                document.getElementById(map[name]).classList.remove('hidden');
-                document.getElementById(map[name]).classList.add('screen-transition-enter');
-                setTimeout(() => document.getElementById(map[name]).classList.remove('screen-transition-enter'), 350);
-            }, 180);
+            document.getElementById(map[name]).classList.remove('hidden');
         }
 
         document.querySelectorAll('.nav-item').forEach(item => {
             item.classList.toggle('active', item.dataset.target === name);
         });
 
-        if (name === 'profile') setTimeout(() => renderProfile(), 200);
-        if (name === 'feed') setTimeout(() => initFeed(), 200);
+        if (name === 'profile') renderProfile();
+        if (name === 'feed') initFeed();
     }
 
     // ── 유저 프로필 화면 (작가별 개인 피드) ───────────────
@@ -867,6 +854,8 @@ const initApp = () => {
         closeMyProfileModal();
         allScreens.forEach(id => document.getElementById(id).classList.add('hidden'));
         loginModal.classList.remove('hidden');
+        const heroSection = document.querySelector('main.hero-section');
+        if (heroSection) heroSection.style.display = '';
         // 인증 정보 + 상태 전부 초기화
         hearts = 108;
         loggedInUser = 'Guest';
@@ -993,6 +982,9 @@ const initApp = () => {
                 }
                 applyAvatarStyle(appliedStyle);
                 updateAllAvatarBtns(initial, color);
+
+                const heroSection = document.querySelector('main.hero-section');
+                if (heroSection) heroSection.style.display = 'none';
 
                 showScreen('upload');
             } else {

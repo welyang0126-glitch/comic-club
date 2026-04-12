@@ -347,10 +347,13 @@ body {
     flex-direction: column;
     z-index: 200;
     font-family: 'Outfit', sans-serif;
+    transition: opacity 0.2s ease, visibility 0.2s ease;
 }
 
 .feed-screen.hidden {
-    display: none;
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
 }
 
 .feed-header {
@@ -976,10 +979,13 @@ body {
     flex-direction: column;
     z-index: 200;
     font-family: 'Outfit', sans-serif;
+    transition: opacity 0.2s ease, visibility 0.2s ease;
 }
 
 .user-profile-screen.hidden {
-    display: none;
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
 }
 
 .up-topbar {
@@ -1124,10 +1130,13 @@ body {
     flex-direction: column;
     z-index: 200;
     font-family: 'Outfit', sans-serif;
+    transition: opacity 0.2s ease, visibility 0.2s ease;
 }
 
 .profile-screen.hidden {
-    display: none;
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
 }
 
 .profile-top-bar {
@@ -1442,10 +1451,13 @@ body {
     flex-direction: column;
     z-index: 200;
     font-family: 'Outfit', sans-serif;
+    transition: opacity 0.2s ease, visibility 0.2s ease;
 }
 
 .shop-screen.hidden {
-    display: none;
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
 }
 
 .shop-header {
@@ -1641,10 +1653,13 @@ body {
     flex-direction: column;
     z-index: 200;
     font-family: 'Outfit', sans-serif;
+    transition: opacity 0.2s ease, visibility 0.2s ease;
 }
 
 .upload-screen.hidden {
-    display: none;
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
 }
 
 .upload-header {
