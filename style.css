@@ -642,6 +642,24 @@ body {
     background: linear-gradient(160deg, #c8860a 0%, #e8a020 40%, #f5c842 70%, #e07b20 100%);
 }
 
+.post-image.kevin-gold {
+    background: linear-gradient(160deg, #7c5c00 0%, #c8960a 40%, #f4c542 70%, #e6b800 100%);
+}
+
+.post-image.kevin-dark {
+    background: linear-gradient(160deg, #1a1a1a 0%, #2d2d2d 40%, #444 70%, #222 100%);
+}
+
+.post-image.kevin-mint {
+    background: linear-gradient(160deg, #0a4a3a 0%, #1a7a5a 40%, #2eb87a 70%, #0d6b50 100%);
+}
+
+/* 포스트 이미지 hover 커서 (프로필로 이동 가능하다는 힌트) */
+.post-image[data-user-id]:hover {
+    opacity: 0.92;
+    transition: opacity 0.15s;
+}
+
 .post-image-inner {
     color: #fff;
 }
