@@ -110,46 +110,14 @@ const initApp = () => {
 
     // ── 오프라인 fallback 데이터 ───────────────────────────
     const FALLBACK_USERS = {
-        'glorich':    { name: 'GloRich_',   handle: '@GloRich_',   color: '#6a0dad', initial: 'G', bio: 'Neon Drift creator ✨ Comic artist since 2019', followers: 1240, postIds: ['post-1', 'gp-2', 'gp-3'] },
-        'jen_borden': { name: 'jen_borden', handle: '@jen_borden', color: '#e07b7b', initial: 'J', bio: 'DragonStar illustrator 🐉 Fantasy comic creator',  followers: 2310, postIds: ['post-2', 'jp-2'] },
-        'kevin':      { name: 'Kevin',      handle: '@Kevin',      color: '#f4c542', initial: 'K', bio: 'Admin · Comic Club founder ⚡',                   followers: 530,  postIds: ['kv-1', 'kv-2', 'kv-3'] },
-        'alex':       { name: 'Alex',       handle: '@Alex',       color: '#e07bbd', initial: 'A', bio: 'Aspiring comic writer 🎨',                        followers: 320,  postIds: [] },
-        'juno':       { name: 'Juno',       handle: '@Juno',       color: '#7bc8e0', initial: 'J', bio: 'Manga fan & aspiring artist',                     followers: 180,  postIds: [] },
-        'sam':        { name: 'Sam',        handle: '@Sam',        color: '#a0e07b', initial: 'S', bio: 'Comic collector & critic',                        followers: 240,  postIds: [] },
-        'rita':       { name: 'Rita',       handle: '@Rita',       color: '#e07b7b', initial: 'R', bio: 'Webtoon enthusiast 🌸',                           followers: 160,  postIds: [] },
+        'kevin': { name: 'Kevin', handle: '@Kevin', color: '#f4c542', initial: 'K', bio: 'Admin · Comic Club founder ⚡', followers: 530, postIds: [] },
+        'alex':  { name: 'Alex',  handle: '@Alex',  color: '#e07bbd', initial: 'A', bio: 'Aspiring comic writer 🎨',      followers: 320, postIds: [] },
+        'juno':  { name: 'Juno',  handle: '@Juno',  color: '#7bc8e0', initial: 'J', bio: 'Manga fan & aspiring artist',   followers: 180, postIds: [] },
+        'sam':   { name: 'Sam',   handle: '@Sam',   color: '#a0e07b', initial: 'S', bio: 'Comic collector & critic',      followers: 240, postIds: [] },
+        'rita':  { name: 'Rita',  handle: '@Rita',  color: '#e07b7b', initial: 'R', bio: 'Webtoon enthusiast 🌸',         followers: 160, postIds: [] },
     };
 
-    const FALLBACK_POSTS = {
-        'post-1': { title: 'Neon Drift, Part 14',        authorId: 'glorich',    imageClass: 'neon',        label: '🌆 NEON CITY',        scene: 'A lone figure walks through rain-soaked streets...',   desc: 'Finally finished the rain scene! This chapter took me forever 😭✨',         time: '2h ago',  baseLikes: 284, likes: {}, comments: [
-            { id:'c1', author:'@GloRich_', text:'Finally done! This took so long 😭', time:'1h ago',  color:'#6a0dad' },
-            { id:'c2', author:'@Alex',     text:'The rain scene looks amazing ✨',    time:'45m ago', color:'#e07bbd' },
-            { id:'c3', author:'@Juno',     text:'Chapter 14 already? Time flies 🔥', time:'20m ago', color:'#7bc8e0' },
-        ]},
-        'post-2': { title: 'DragonStar',                 authorId: 'jen_borden', imageClass: 'dragon',      label: '🐉 DRAGONSTAR',       scene: 'The dragon soars above the golden plains!',            desc: 'A dragon bright is a dragon right — new episode drops this Friday 🔥',      time: '5h ago',  baseLikes: 512, likes: {}, comments: [
-            { id:'c4', author:'@jen_borden', text:'DragonStar forever 🐉❤️',         time:'4h ago', color:'#e07b7b' },
-            { id:'c5', author:'@Sam',        text:'The colors in this are insane!!', time:'3h ago', color:'#a0e07b' },
-        ]},
-        'kv-1':   { title: 'Comic Club Weekly Spotlight ⚡', authorId: 'kevin',    imageClass: 'kevin-gold',  label: '⚡ COMIC CLUB WEEKLY', scene: "This week's top picks — curated by the admin!",        desc: 'Welcome to the weekly spotlight! Check out the best comics 🎉',             time: '1h ago',  baseLikes: 97,  likes: {}, comments: [
-            { id:'k1', author:'@Alex', text:'Love this series!! 🔥', time:'30m ago', color:'#e07bbd' },
-        ]},
-        'kv-2':   { title: "Admin's Pick: Hidden Gems 🏆",  authorId: 'kevin',    imageClass: 'kevin-dark',  label: "🏆 ADMIN'S PICK",     scene: 'Hidden gems you might have missed...',                 desc: 'These underrated comics deserve way more love. Go show them some support! 💛', time: '3h ago',  baseLikes: 63,  likes: {}, comments: [
-            { id:'k2', author:'@Juno', text:'Great picks as always!', time:'2h ago', color:'#7bc8e0' },
-        ]},
-        'kv-3':   { title: 'New Feature: Profile Customization 🎨', authorId: 'kevin', imageClass: 'kevin-mint', label: '🎨 NEW FEATURE DROP', scene: 'Profile customization is now live!',            desc: 'You can now customize your profile with items from the shop! 🛒✨',          time: '6h ago',  baseLikes: 201, likes: {}, comments: [
-            { id:'k3', author:'@Sam',  text:'This is so cool!!',      time:'5h ago', color:'#a0e07b' },
-            { id:'k4', author:'@Rita', text:'Already bought the crown 👑', time:'4h ago', color:'#e07b7b' },
-        ]},
-        'gp-2':   { title: 'Neon Drift, Part 13',        authorId: 'glorich',    imageClass: 'neon',        label: '🌆 NEON CITY',        scene: 'Two figures face off under flickering neon lights...', desc: 'The confrontation scene is finally here 💥',                                time: '3d ago',  baseLikes: 156, likes: {}, comments: [
-            { id:'g1', author:'@Rita', text:'That fight scene!! 🔥🔥', time:'2d ago', color:'#e07b7b' },
-        ]},
-        'gp-3':   { title: 'Neon Drift, Part 1',         authorId: 'glorich',    imageClass: 'neon',        label: '🌆 NEON CITY',        scene: 'A city that never sleeps. A story just beginning...', desc: 'Where it all began — the very first chapter! 🌟',                          time: '2mo ago', baseLikes: 89,  likes: {}, comments: [
-            { id:'g2', author:'@Sam', text:'Going back to the beginning 🥺', time:'1mo ago', color:'#a0e07b' },
-        ]},
-        'jp-2':   { title: 'DragonStar: Origins',        authorId: 'jen_borden', imageClass: 'dragon',      label: '🐉 DRAGONSTAR',       scene: 'A young dragon hatches from a golden egg...',          desc: 'The origin story — how DragonStar was born 🔥',                             time: '1wk ago', baseLikes: 203, likes: {}, comments: [
-            { id:'j1', author:'@Alex', text:'The origin story is 🤯',       time:'6d ago', color:'#e07bbd' },
-            { id:'j2', author:'@Juno', text:'I love prequel content!!',      time:'5d ago', color:'#7bc8e0' },
-        ]},
-    };
+    const FALLBACK_POSTS = {};
 
     // ── 삭제된 포스트 localStorage 영속화 ─────────────────
     function getDeletedPosts() {
@@ -160,6 +128,13 @@ const initApp = () => {
         const deleted = getDeletedPosts();
         deleted.add(postId);
         localStorage.setItem('comicclub_deleted_posts', JSON.stringify([...deleted]));
+    }
+
+    // ── localStorage 버전 체크: 구버전 캐시 강제 초기화 ──────
+    const DB_VERSION = '3';
+    if (localStorage.getItem('comicclub_version') !== DB_VERSION) {
+        localStorage.removeItem('comicclub_deleted_posts');
+        localStorage.setItem('comicclub_version', DB_VERSION);
     }
 
     async function loadBackendData() {
