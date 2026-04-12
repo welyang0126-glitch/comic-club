@@ -151,6 +151,17 @@ const initApp = () => {
         ]},
     };
 
+    // ── 삭제된 포스트 localStorage 영속화 ─────────────────
+    function getDeletedPosts() {
+        try { return new Set(JSON.parse(localStorage.getItem('comicclub_deleted_posts') || '[]')); }
+        catch { return new Set(); }
+    }
+    function persistDeletedPost(postId) {
+        const deleted = getDeletedPosts();
+        deleted.add(postId);
+        localStorage.setItem('comicclub_deleted_posts', JSON.stringify([...deleted]));
+    }
+
     async function loadBackendData() {
         try {
             const [usersRes, postsRes] = await Promise.all([
@@ -168,6 +179,12 @@ const initApp = () => {
             USERS_DB   = FALLBACK_USERS;
             POSTS_CONTENT = FALLBACK_POSTS;
         }
+
+        // 삭제된 포스트 필터링 — POSTS_CONTENT에서 제거하고 정적 DOM 요소도 숨김
+        getDeletedPosts().forEach(postId => {
+            delete POSTS_CONTENT[postId];
+            document.querySelectorAll(`.feed-post[data-post-id="${postId}"]`).forEach(el => el.remove());
+        });
 
         // 피드에 업로드된 커스텀 포스트 동적 삽입 (백엔드 있을 때만)
         const feedBody = document.querySelector('.feed-body');
@@ -232,6 +249,26 @@ const initApp = () => {
     // ── 피드 렌더 함수 ─────────────────────────────────
     function renderFeedPost(postId) {
         const currentUser = loggedInUser || 'Guest';
+
+        // 본인 포스트에 삭제 버튼 동적 주입 (정적 HTML 카드 포함)
+        const postCard = document.querySelector(`.feed-post[data-post-id="${postId}"]`);
+        if (postCard && POSTS_CONTENT[postId]) {
+            const content = POSTS_CONTENT[postId];
+            const isOwn = currentUser !== 'Guest' && currentUser.toLowerCase() === content.authorId.toLowerCase();
+            let delBtn = postCard.querySelector('.delete-post-btn');
+            if (isOwn && !delBtn) {
+                const postUserEl = postCard.querySelector('.post-user');
+                if (postUserEl) {
+                    postUserEl.insertAdjacentHTML('beforeend',
+                        `<button class="delete-post-btn" data-post-id="${postId}"
+                            style="margin-left:auto;background:none;border:none;color:#bbb;cursor:pointer;font-size:18px;line-height:1;padding:0 4px;"
+                            title="Delete post">🗑</button>`
+                    );
+                }
+            } else if (delBtn) {
+                delBtn.style.display = isOwn ? '' : 'none';
+            }
+        }
 
         // 좋아요 버튼
         const likeBtn = document.querySelector(`.like-btn[data-post-id="${postId}"]`);
@@ -719,40 +756,28 @@ const initApp = () => {
             const postId = deleteBtn.dataset.postId;
             if (!confirm('정말로 이 포스트를 삭제하시겠습니까?')) return;
 
-            deleteBtn.disabled = true;
-            deleteBtn.textContent = '...';
+            // localStorage에 삭제 기록 (페이지 새로고침 후에도 유지)
+            persistDeletedPost(postId);
 
-            fetch(`/api/posts/${postId}?userId=${loggedInUser}`, { method: 'DELETE' })
-            .then(res => res.json())
-            .then(data => {
-                if (data.success) {
-                    const postCards = document.querySelectorAll(`.feed-post[data-post-id="${postId}"]`);
-                    postCards.forEach(card => card.remove());
-                    delete POSTS_CONTENT[postId];
-                    // delete from user array
-                    const ukey = loggedInUser.toLowerCase();
-                    if (USERS_DATA[ukey]) {
-                        USERS_DATA[ukey].postIds = USERS_DATA[ukey].postIds.filter(id => id !== postId);
-                        if (document.getElementById('profile-screen')) renderProfile();
-                        
-                        // Update comic count on 'user-profile-screen' if visible
-                        if (!document.getElementById('user-profile-screen').classList.contains('hidden')) {
-                            const countEl = document.getElementById('up-postcount');
-                            if (countEl) countEl.textContent = `${USERS_DATA[ukey].postIds.length} comics`;
-                        }
-                    }
-                } else {
-                    alert(data.error || '삭제에 실패했습니다.');
-                    deleteBtn.disabled = false;
-                    deleteBtn.textContent = '🗑️';
+            // DOM에서 즉시 제거
+            document.querySelectorAll(`.feed-post[data-post-id="${postId}"]`).forEach(card => card.remove());
+
+            // 메모리에서 제거
+            delete POSTS_CONTENT[postId];
+
+            // 유저 postIds 배열에서도 제거
+            const ukey = loggedInUser.toLowerCase();
+            if (USERS_DATA[ukey]) {
+                USERS_DATA[ukey].postIds = USERS_DATA[ukey].postIds.filter(id => id !== postId);
+                if (!document.getElementById('profile-screen').classList.contains('hidden')) renderProfile();
+                const countEl = document.getElementById('up-postcount');
+                if (countEl && !document.getElementById('user-profile-screen').classList.contains('hidden')) {
+                    countEl.textContent = `${USERS_DATA[ukey].postIds.length} comics`;
                 }
-            })
-            .catch(err => {
-                console.error(err);
-                alert('서버 오류로 삭제에 실패했습니다.');
-                deleteBtn.disabled = false;
-                deleteBtn.textContent = '🗑️';
-            });
+            }
+
+            // 백엔드가 있을 경우 동기화 (실패해도 무시)
+            fetch(`/api/posts/${postId}?userId=${loggedInUser}`, { method: 'DELETE' }).catch(() => {});
         }
 
         // ── 공유 버튼 클릭 ───────────────────────────────
