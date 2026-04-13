@@ -1257,7 +1257,7 @@ const initApp = () => {
 
         const text = document.createElement('div');
         text.contentEditable = true;
-        text.textContent = type === 'thought' ? '생각 중...' : '말해봐요!';
+        text.textContent = type === 'thought' ? 'Thinking...' : 'Say it!';
         text.style.cssText = 'outline:none; min-width:40px; text-align:center;';
         text.onclick = e => e.stopPropagation();
 
