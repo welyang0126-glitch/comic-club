@@ -1730,6 +1730,9 @@ body {
     background: #1a1a1a;
     min-height: 100vh;
 }
+#preview-screen.hidden {
+    display: none !important;
+}
 .canvas-bubble {
     position: absolute;
     z-index: 20;
