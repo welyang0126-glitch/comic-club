@@ -1176,7 +1176,152 @@ const initApp = () => {
             dropZone.querySelector('.drop-main').style.display = 'block';
             dropZone.querySelector('.drop-sub').style.display = 'block';
         }
+
+        // 편집 툴바 표시/숨기기
+        const editorToolbar = document.getElementById('editor-toolbar');
+        if (editorToolbar) editorToolbar.style.display = uploadedImages.length > 0 ? 'flex' : 'none';
+        if (uploadedImages.length === 0) {
+            document.getElementById('gap-slider-wrap').style.display = 'none';
+            dropZone.querySelectorAll('.speech-bubble').forEach(b => b.remove());
+        }
     };
+
+    // ── 말풍선 편집 기능 ───────────────────────────────
+    function makeDraggable(el) {
+        let ox, oy;
+        el.addEventListener('mousedown', e => {
+            if (e.target.contentEditable === 'true') return;
+            ox = e.clientX - el.offsetLeft;
+            oy = e.clientY - el.offsetTop;
+            const move = e2 => {
+                el.style.left = (e2.clientX - ox) + 'px';
+                el.style.top  = (e2.clientY - oy) + 'px';
+                el.style.transform = 'none';
+            };
+            const up = () => {
+                document.removeEventListener('mousemove', move);
+                document.removeEventListener('mouseup', up);
+            };
+            document.addEventListener('mousemove', move);
+            document.addEventListener('mouseup', up);
+        });
+        el.addEventListener('touchstart', e => {
+            const t = e.touches[0];
+            ox = t.clientX - el.offsetLeft;
+            oy = t.clientY - el.offsetTop;
+            const move = e2 => {
+                const t2 = e2.touches[0];
+                el.style.left = (t2.clientX - ox) + 'px';
+                el.style.top  = (t2.clientY - oy) + 'px';
+                el.style.transform = 'none';
+            };
+            const up = () => {
+                document.removeEventListener('touchmove', move);
+                document.removeEventListener('touchend', up);
+            };
+            document.addEventListener('touchmove', move, { passive: true });
+            document.addEventListener('touchend', up);
+        }, { passive: true });
+    }
+
+    function addBubble(type) {
+        if (uploadedImages.length === 0) { alert('이미지를 먼저 선택해주세요.'); return; }
+        const bubble = document.createElement('div');
+        bubble.className = 'speech-bubble ' + type;
+        bubble.style.cssText = `
+            position: absolute;
+            left: 50%; top: 30%;
+            transform: translate(-50%, -50%);
+            min-width: 80px; min-height: 40px;
+            padding: 8px 14px;
+            background: ${type === 'thought' ? '#f0f0ff' : '#fff'};
+            border: 2px solid ${type === 'thought' ? '#6c5ce7' : '#1a1a1a'};
+            border-radius: ${type === 'thought' ? '40px' : '16px'};
+            cursor: move;
+            z-index: 10;
+            font-family: Nunito, sans-serif;
+            font-weight: 700;
+            font-size: 14px;
+            user-select: none;
+            box-shadow: 2px 2px 0px rgba(0,0,0,0.15);
+        `;
+
+        const text = document.createElement('div');
+        text.contentEditable = true;
+        text.textContent = type === 'thought' ? '생각 중...' : '말해봐요!';
+        text.style.cssText = 'outline:none; min-width:40px; text-align:center;';
+        text.onclick = e => e.stopPropagation();
+
+        const tail = document.createElement('div');
+        if (type === 'speech') {
+            tail.style.cssText = `
+                position:absolute; bottom:-12px; left:16px;
+                width:0; height:0;
+                border-left:8px solid transparent;
+                border-right:8px solid transparent;
+                border-top:12px solid #1a1a1a;
+            `;
+            const tailInner = document.createElement('div');
+            tailInner.style.cssText = `
+                position:absolute; bottom:2px; left:-6px;
+                width:0; height:0;
+                border-left:6px solid transparent;
+                border-right:6px solid transparent;
+                border-top:10px solid #fff;
+            `;
+            tail.appendChild(tailInner);
+        } else {
+            tail.innerHTML = `
+                <div style="position:absolute;bottom:-18px;left:12px;display:flex;flex-direction:column;align-items:flex-start;gap:2px;">
+                    <div style="width:10px;height:10px;border-radius:50%;background:#f0f0ff;border:2px solid #6c5ce7;"></div>
+                    <div style="width:6px;height:6px;border-radius:50%;background:#f0f0ff;border:2px solid #6c5ce7;margin-left:2px;"></div>
+                    <div style="width:4px;height:4px;border-radius:50%;background:#f0f0ff;border:2px solid #6c5ce7;margin-left:4px;"></div>
+                </div>
+            `;
+        }
+
+        const del = document.createElement('button');
+        del.textContent = '✕';
+        del.style.cssText = `
+            position:absolute; top:-10px; right:-10px;
+            background:#e24b4a; color:#fff; border:none;
+            border-radius:50%; width:22px; height:22px;
+            font-size:11px; cursor:pointer; line-height:1;
+            font-weight:800;
+        `;
+        del.onclick = (e) => { e.stopPropagation(); bubble.remove(); };
+
+        bubble.appendChild(text);
+        bubble.appendChild(tail);
+        bubble.appendChild(del);
+        makeDraggable(bubble);
+        dropZone.appendChild(bubble);
+    }
+
+    function clearBubbles() {
+        dropZone.querySelectorAll('.speech-bubble').forEach(b => b.remove());
+        const gs = document.getElementById('gap-slider');
+        if (gs) gs.value = 8;
+        thumbnailStrip.style.gap = '8px';
+        const gv = document.getElementById('gap-value');
+        if (gv) gv.textContent = '8px';
+        document.getElementById('gap-slider-wrap').style.display = 'none';
+    }
+
+    function toggleGapSlider() {
+        const wrap = document.getElementById('gap-slider-wrap');
+        wrap.style.display = wrap.style.display === 'flex' ? 'none' : 'flex';
+    }
+
+    // 툴바 버튼 이벤트 리스너
+    document.getElementById('btn-speech-bubble').addEventListener('click', () => addBubble('speech'));
+    document.getElementById('btn-thought-bubble').addEventListener('click', () => addBubble('thought'));
+    document.getElementById('btn-gap-toggle').addEventListener('click', toggleGapSlider);
+    document.getElementById('btn-clear-bubbles').addEventListener('click', clearBubbles);
+    document.getElementById('gap-slider').addEventListener('input', function() {
+        thumbnailStrip.style.gap = this.value + 'px';
+        document.getElementById('gap-value').textContent = this.value + 'px';
+    });
 
     // 파일 읽어서 배열에 추가하는 함수
     const handleFiles = (files) => {

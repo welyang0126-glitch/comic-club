@@ -143,6 +143,39 @@
                     <button class="thumb-add" id="thumb-add-btn">+</button>
                 </div>
 
+                <!-- 편집 툴바 (이미지 선택 후 표시) -->
+                <div id="editor-toolbar" style="display:none; gap:8px; margin-bottom:12px; flex-wrap:wrap;">
+                    <button id="btn-speech-bubble"
+                        style="background:#fff; border:2px solid #1a1a1a; border-radius:20px;
+                               padding:8px 14px; font-weight:800; cursor:pointer; font-size:13px;">
+                        💬 말풍선
+                    </button>
+                    <button id="btn-thought-bubble"
+                        style="background:#f0f0ff; border:2px solid #6c5ce7; border-radius:20px;
+                               padding:8px 14px; font-weight:800; cursor:pointer; font-size:13px;">
+                        💭 생각풍선
+                    </button>
+                    <button id="btn-gap-toggle"
+                        style="background:#fff3cd; border:2px solid #f5a000; border-radius:20px;
+                               padding:8px 14px; font-weight:800; cursor:pointer; font-size:13px;">
+                        ↕ 간격 조절
+                    </button>
+                    <button id="btn-clear-bubbles"
+                        style="background:#fff0f0; border:2px solid #e24b4a; border-radius:20px;
+                               padding:8px 14px; font-weight:800; cursor:pointer; font-size:13px;">
+                        🗑 초기화
+                    </button>
+                </div>
+
+                <!-- 간격 슬라이더 (토글) -->
+                <div id="gap-slider-wrap"
+                     style="display:none; background:#fff; border-radius:12px;
+                            padding:12px 16px; margin-bottom:12px; align-items:center; gap:12px;">
+                    <span style="font-size:13px; font-weight:700;">패널 간격</span>
+                    <input type="range" id="gap-slider" min="0" max="40" value="8" style="flex:1;">
+                    <span id="gap-value" style="font-size:13px; font-weight:700; min-width:32px;">8px</span>
+                </div>
+
                 <div class="upload-field">
                     <label class="field-label">COMIC TITLE</label>
                     <input type="text" class="field-input" placeholder="Enter your saga name...">

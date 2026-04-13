@@ -1723,6 +1723,12 @@ body {
     cursor: pointer;
     transition: border-color 0.2s;
     margin-bottom: 0.8rem;
+    position: relative;
+    overflow: visible;
+}
+.speech-bubble {
+    position: absolute;
+    z-index: 10;
 }
 
 .drop-zone:hover {
