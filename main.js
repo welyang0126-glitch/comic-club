@@ -399,7 +399,7 @@ const initApp = () => {
     // ── 유저 프로필 화면 (작가별 개인 피드) ───────────────
     function buildPostCardHTML(postId) {
         const content = POSTS_CONTENT[postId];
-        const author = USERS_DATA[content.authorId];
+        const author = USERS_DATA[content.authorId.toLowerCase()];
         if (!content || !author) return '';
         return `
         <div class="feed-post" data-post-id="${postId}">
@@ -492,7 +492,7 @@ const initApp = () => {
     }
 
     function showUserProfile(userId) {
-        const user = USERS_DATA[userId];
+        const user = USERS_DATA[userId.toLowerCase()];
         if (!user) return;
 
         // 헤더 정보 채우기
