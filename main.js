@@ -1472,30 +1472,39 @@ const initApp = () => {
             if (e.target.contentEditable === 'true' || e.target.tagName === 'BUTTON') return;
             e.preventDefault();
             const canvas = document.getElementById('preview-canvas');
-            ox = e.clientX - el.offsetLeft;
-            oy = e.clientY - el.offsetTop + canvas.scrollTop;
+            const canvasRect = canvas.getBoundingClientRect();
+            const elRect = el.getBoundingClientRect();
+            ox = e.clientX - elRect.left;
+            oy = e.clientY - elRect.top;
             const move = e2 => {
-                el.style.left = (e2.clientX - ox) + 'px';
-                el.style.top = (e2.clientY - oy + document.getElementById('preview-canvas').scrollTop) + 'px';
+                const c = document.getElementById('preview-canvas');
+                const cr = c.getBoundingClientRect();
+                el.style.left = (e2.clientX - ox - cr.left + c.scrollLeft) + 'px';
+                el.style.top = (e2.clientY - oy - cr.top + c.scrollTop) + 'px';
             };
             const up = () => { document.removeEventListener('mousemove', move); document.removeEventListener('mouseup', up); };
             document.addEventListener('mousemove', move);
             document.addEventListener('mouseup', up);
         });
         el.addEventListener('touchstart', e => {
+            e.preventDefault();
             const t = e.touches[0];
             const canvas = document.getElementById('preview-canvas');
-            ox = t.clientX - el.offsetLeft;
-            oy = t.clientY - el.offsetTop + canvas.scrollTop;
+            const canvasRect = canvas.getBoundingClientRect();
+            const elRect = el.getBoundingClientRect();
+            ox = t.clientX - elRect.left;
+            oy = t.clientY - elRect.top;
             const move = e2 => {
                 const t2 = e2.touches[0];
-                el.style.left = (t2.clientX - ox) + 'px';
-                el.style.top = (t2.clientY - oy + document.getElementById('preview-canvas').scrollTop) + 'px';
+                const c = document.getElementById('preview-canvas');
+                const cr = c.getBoundingClientRect();
+                el.style.left = (t2.clientX - ox - cr.left + c.scrollLeft) + 'px';
+                el.style.top = (t2.clientY - oy - cr.top + c.scrollTop) + 'px';
             };
             const up = () => { document.removeEventListener('touchmove', move); document.removeEventListener('touchend', up); };
-            document.addEventListener('touchmove', move, { passive: true });
+            document.addEventListener('touchmove', move, { passive: false });
             document.addEventListener('touchend', up);
-        }, { passive: true });
+        }, { passive: false });
     }
 
     function clearCanvasBubbles() {
