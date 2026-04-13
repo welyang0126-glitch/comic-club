@@ -144,7 +144,7 @@ const initApp = () => {
     }
 
     // ── localStorage 버전 체크: 샘플 계정 데이터만 선택 제거 ──
-    const DB_VERSION = '4';
+    const DB_VERSION = '5';
     if (localStorage.getItem('comicclub_version') !== DB_VERSION) {
         const SAMPLE_USERS = ['glorich', 'jen_borden', 'gloRich_'];
 
@@ -152,9 +152,9 @@ const initApp = () => {
         const cleanedPosts = getLocalPosts().filter(p => !SAMPLE_USERS.includes(p.authorId));
         localStorage.setItem('comicclub_local_posts', JSON.stringify(cleanedPosts));
 
-        // 샘플 포스트 ID를 삭제 목록에서도 정리 (불필요한 잔류 항목 제거)
-        const cleanedDeleted = [...getDeletedPosts()].filter(id => !id.startsWith('local-') || true);
-        localStorage.setItem('comicclub_deleted_posts', JSON.stringify(cleanedDeleted));
+        // 정적 HTML 시절의 stale 삭제 기록 전체 초기화
+        // (구버전에서 kv-1 등 정적 포스트를 삭제했던 기록이 남아 신규 동적 포스트를 가리던 문제 해결)
+        localStorage.removeItem('comicclub_deleted_posts');
 
         localStorage.setItem('comicclub_version', DB_VERSION);
     }
@@ -174,7 +174,7 @@ const initApp = () => {
             console.warn('백엔드 없음 → 오프라인 데이터 사용');
             USERS_DATA = FALLBACK_USERS;
             USERS_DB   = FALLBACK_USERS;
-            POSTS_CONTENT = FALLBACK_POSTS;
+            POSTS_CONTENT = { ...FALLBACK_POSTS }; // 얕은 복사 — FALLBACK_POSTS 상수 변이 방지
         }
 
         // localStorage에 저장된 로컬 업로드 포스트 병합
@@ -318,6 +318,43 @@ const initApp = () => {
     }
 
     function initFeed() {
+        const feedBody = document.querySelector('.feed-body');
+        if (!feedBody) return;
+
+        const hasPosts = Object.keys(POSTS_CONTENT).length > 0;
+
+        // 포스트 카드가 DOM에 없지만 POSTS_CONTENT에 있으면 재주입 (화면 전환 후 돌아올 때 대비)
+        if (hasPosts && feedBody.querySelectorAll('.feed-post').length === 0) {
+            const storyContainer = feedBody.querySelector('.story-container');
+            if (storyContainer) {
+                const htmls = Object.keys(POSTS_CONTENT).reverse().map(buildPostCardHTML).filter(Boolean);
+                storyContainer.insertAdjacentHTML('afterend', htmls.join(''));
+            }
+        }
+
+        // 빈 피드 안내 UI
+        const emptyState = feedBody.querySelector('.feed-empty-state');
+        if (!hasPosts) {
+            if (!emptyState) {
+                const storyContainer = feedBody.querySelector('.story-container');
+                if (storyContainer) {
+                    const el = document.createElement('div');
+                    el.className = 'feed-empty-state';
+                    el.style.cssText = 'display:flex;flex-direction:column;align-items:center;justify-content:center;padding:60px 20px;text-align:center;';
+                    el.innerHTML = `
+                        <div style="font-size:48px;margin-bottom:16px;">📭</div>
+                        <div style="font-weight:800;font-size:18px;margin-bottom:8px;">No comics yet!</div>
+                        <div style="font-size:14px;color:#aaa;margin-bottom:24px;">Be the first to share your comic with the community.</div>
+                        <button id="feed-empty-upload-btn" style="background:#f5d000;border:2px solid #1a1a1a;border-radius:12px;padding:12px 28px;font-size:15px;font-weight:900;cursor:pointer;font-family:inherit;">✏️ Upload Now</button>
+                    `;
+                    storyContainer.insertAdjacentElement('afterend', el);
+                    document.getElementById('feed-empty-upload-btn').addEventListener('click', () => showScreen('upload'));
+                }
+            }
+        } else {
+            emptyState?.remove();
+        }
+
         Object.keys(POSTS_CONTENT).forEach(pid => renderFeedPost(pid));
     }
 
@@ -1503,6 +1540,7 @@ const initApp = () => {
                     const feedBody2 = document.querySelector('.feed-body');
                     const storyContainer2 = feedBody2 ? feedBody2.querySelector('.story-container') : null;
                     if (storyContainer2) {
+                        feedBody2.querySelector('.feed-empty-state')?.remove();
                         storyContainer2.insertAdjacentHTML('afterend', buildPostCardHTML(newPostId));
                         renderFeedPost(newPostId);
                     }
