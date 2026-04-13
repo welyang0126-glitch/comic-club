@@ -143,39 +143,6 @@
                     <button class="thumb-add" id="thumb-add-btn">+</button>
                 </div>
 
-                <!-- 편집 툴바 (이미지 선택 후 표시) -->
-                <div id="editor-toolbar" style="display:none; gap:8px; margin-bottom:12px; flex-wrap:wrap;">
-                    <button id="btn-speech-bubble"
-                        style="background:#fff; border:2px solid #1a1a1a; border-radius:20px;
-                               padding:8px 14px; font-weight:800; cursor:pointer; font-size:13px;">
-                        💬 Speech
-                    </button>
-                    <button id="btn-thought-bubble"
-                        style="background:#f0f0ff; border:2px solid #6c5ce7; border-radius:20px;
-                               padding:8px 14px; font-weight:800; cursor:pointer; font-size:13px;">
-                        💭 Thought
-                    </button>
-                    <button id="btn-gap-toggle"
-                        style="background:#fff3cd; border:2px solid #f5a000; border-radius:20px;
-                               padding:8px 14px; font-weight:800; cursor:pointer; font-size:13px;">
-                        ↕ Gap
-                    </button>
-                    <button id="btn-clear-bubbles"
-                        style="background:#fff0f0; border:2px solid #e24b4a; border-radius:20px;
-                               padding:8px 14px; font-weight:800; cursor:pointer; font-size:13px;">
-                        🗑 Reset
-                    </button>
-                </div>
-
-                <!-- 간격 슬라이더 (토글) -->
-                <div id="gap-slider-wrap"
-                     style="display:none; background:#fff; border-radius:12px;
-                            padding:12px 16px; margin-bottom:12px; align-items:center; gap:12px;">
-                    <span style="font-size:13px; font-weight:700;">Panel Gap</span>
-                    <input type="range" id="gap-slider" min="0" max="40" value="8" style="flex:1;">
-                    <span id="gap-value" style="font-size:13px; font-weight:700; min-width:32px;">8px</span>
-                </div>
-
                 <div class="upload-field">
                     <label class="field-label">COMIC TITLE</label>
                     <input type="text" class="field-input" placeholder="Enter your saga name...">
@@ -210,7 +177,7 @@
                     </div>
                 </div>
 
-                <button class="upload-btn">⬆ Upload Comic</button>
+                <button class="upload-btn">👁 Preview & Edit</button>
                 <p class="legal-text">BY UPLOADING, YOU AGREE TO THE<br><a href="#">CREATIVE COMMUNITY GUIDELINES</a>
                 </p>
             </div>
@@ -223,23 +190,77 @@
             </nav>
         </div>
 
-        <!-- 업로드 미리보기 모달 -->
-        <div id="upload-preview-modal" class="upload-preview-modal hidden">
-            <div class="preview-topbar">
-                <button class="preview-back-btn" id="preview-back-btn">← Back</button>
-                <span class="preview-title-label">Preview</span>
-                <span></span>
+        <!-- 미리보기 & 편집 화면 -->
+        <div id="preview-screen" class="hidden" style="position:fixed;inset:0;background:#1a1a1a;z-index:200;display:flex;flex-direction:column;overflow:hidden;">
+            <!-- 헤더 -->
+            <div style="background:#1a1a1a;color:#fff;padding:14px 16px;display:flex;align-items:center;justify-content:center;flex-shrink:0;border-bottom:1px solid #333;">
+                <button id="preview-back-header"
+                    style="position:absolute;left:16px;background:none;border:none;color:#fff;font-size:14px;cursor:pointer;font-family:inherit;">
+                    ← Back
+                </button>
+                <span style="font-weight:800;font-size:16px;">Preview & Edit</span>
             </div>
-            <div class="preview-body" id="preview-body">
-                <div class="preview-meta">
-                    <p class="preview-comic-title" id="preview-comic-title"></p>
-                    <p class="preview-comic-desc" id="preview-comic-desc"></p>
+
+            <!-- 본문: 좌측 툴패널 + 우측 캔버스 -->
+            <div style="display:flex;flex:1;overflow:hidden;">
+
+                <!-- 좌측 툴패널 -->
+                <div style="width:80px;background:#111;border-right:1px solid #333;display:flex;flex-direction:column;align-items:center;padding:16px 8px;gap:12px;overflow-y:auto;flex-shrink:0;">
+                    <div style="font-size:9px;color:#666;font-weight:700;letter-spacing:.08em;margin-bottom:4px;">TOOLS</div>
+
+                    <div id="tool-speech" class="tool-item" draggable="true"
+                        style="width:60px;height:60px;background:#fff;border:2px solid #444;border-radius:12px;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:grab;gap:4px;user-select:none;">
+                        <span style="font-size:22px;">💬</span>
+                        <span style="font-size:9px;font-weight:700;color:#333;">Speech</span>
+                    </div>
+
+                    <div id="tool-thought" class="tool-item" draggable="true"
+                        style="width:60px;height:60px;background:#f0f0ff;border:2px solid #6c5ce7;border-radius:12px;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:grab;gap:4px;user-select:none;">
+                        <span style="font-size:22px;">💭</span>
+                        <span style="font-size:9px;font-weight:700;color:#6c5ce7;">Thought</span>
+                    </div>
+
+                    <div style="width:40px;height:1px;background:#333;"></div>
+
+                    <div style="display:flex;flex-direction:column;align-items:center;gap:6px;">
+                        <span style="font-size:18px;color:#fff;">↕</span>
+                        <span style="font-size:9px;color:#aaa;font-weight:700;">Gap</span>
+                        <input type="range" id="preview-gap-slider" min="0" max="40" value="8"
+                            style="writing-mode:vertical-lr;direction:rtl;height:80px;cursor:pointer;accent-color:#f5d000;">
+                        <span id="preview-gap-val" style="font-size:10px;color:#f5d000;font-weight:700;">8px</span>
+                    </div>
+
+                    <div style="width:40px;height:1px;background:#333;"></div>
+
+                    <div id="preview-reset-btn" class="tool-item"
+                        style="width:60px;height:60px;background:#2a0000;border:2px solid #e24b4a;border-radius:12px;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;gap:4px;">
+                        <span style="font-size:20px;">🗑</span>
+                        <span style="font-size:9px;font-weight:700;color:#e24b4a;">Reset</span>
+                    </div>
                 </div>
-                <div class="preview-images" id="preview-images"></div>
+
+                <!-- 우측 캔버스 -->
+                <div id="preview-canvas" style="flex:1;overflow-y:auto;padding:20px;position:relative;">
+                    <div style="color:#fff;margin-bottom:16px;">
+                        <div style="font-weight:800;font-size:20px;" id="preview-title-text"></div>
+                        <div style="font-size:13px;color:#aaa;margin-top:4px;" id="preview-desc-text"></div>
+                    </div>
+                    <div id="preview-panels" style="display:flex;flex-direction:column;gap:8px;"></div>
+                    <!-- 말풍선 오버레이 -->
+                    <div id="bubble-layer" style="position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:10;"></div>
+                </div>
             </div>
-            <div class="preview-bottom">
-                <button class="preview-cancel-btn" id="preview-cancel-btn">✏️ Edit</button>
-                <button class="preview-confirm-btn" id="preview-confirm-btn">⬆ Publish to Feed</button>
+
+            <!-- 하단 고정 버튼 -->
+            <div style="display:flex;flex-shrink:0;border-top:1px solid #333;">
+                <button id="preview-edit-btn"
+                    style="flex:1;background:#333;border:none;color:#fff;padding:18px;font-size:15px;font-weight:800;cursor:pointer;font-family:inherit;">
+                    ✏️ Edit
+                </button>
+                <button id="preview-publish-btn"
+                    style="flex:2;background:#f5d000;border:none;color:#1a1a1a;padding:18px;font-size:15px;font-weight:900;cursor:pointer;font-family:inherit;">
+                    ⬆ Publish to Feed
+                </button>
             </div>
         </div>
 

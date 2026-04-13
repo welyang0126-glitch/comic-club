@@ -374,12 +374,16 @@ const initApp = () => {
     const badgeEmojis = { star: '⭐', fire: '🔥', shield: '🛡️', crown: '👑' };
 
     // ── 화면 전환 ──────────────────────────────────────
-    const allScreens = ['feed-screen', 'upload-screen', 'shop-screen', 'profile-screen', 'user-profile-screen'];
+    const allScreens = ['feed-screen', 'upload-screen', 'shop-screen', 'profile-screen', 'user-profile-screen', 'preview-screen'];
 
     function showScreen(name) {
         allScreens.forEach(id => document.getElementById(id).classList.add('hidden'));
 
-        const map = { feed: 'feed-screen', upload: 'upload-screen', shop: 'shop-screen', profile: 'profile-screen' };
+        const map = {
+            feed: 'feed-screen', upload: 'upload-screen',
+            shop: 'shop-screen', profile: 'profile-screen',
+            preview: 'preview-screen'
+        };
         if (map[name]) {
             document.getElementById(map[name]).classList.remove('hidden');
         }
@@ -1359,15 +1363,169 @@ const initApp = () => {
         wrap.style.display = wrap.style.display === 'flex' ? 'none' : 'flex';
     }
 
-    // 툴바 버튼 이벤트 리스너
-    document.getElementById('btn-speech-bubble').addEventListener('click', () => addBubble('speech'));
-    document.getElementById('btn-thought-bubble').addEventListener('click', () => addBubble('thought'));
-    document.getElementById('btn-gap-toggle').addEventListener('click', toggleGapSlider);
-    document.getElementById('btn-clear-bubbles').addEventListener('click', clearBubbles);
-    document.getElementById('gap-slider').addEventListener('input', function() {
-        thumbnailStrip.style.gap = this.value + 'px';
-        document.getElementById('gap-value').textContent = this.value + 'px';
+    // ── 미리보기 & 편집 화면 ─────────────────────────────
+
+    function openPreview() {
+        const titleInput = document.querySelector('.field-input').value.trim();
+        if (uploadedImages.length === 0) { alert('Please add panels first!'); return; }
+        if (!titleInput) { alert('Please enter a comic title!'); return; }
+
+        document.getElementById('preview-title-text').textContent = titleInput;
+        document.getElementById('preview-desc-text').textContent =
+            document.getElementById('desc-area').value.trim();
+
+        renderPreviewPanels();
+        clearCanvasBubbles();
+        showScreen('preview');
+    }
+
+    function renderPreviewPanels() {
+        const container = document.getElementById('preview-panels');
+        const gapVal = document.getElementById('preview-gap-slider').value;
+        container.style.gap = gapVal + 'px';
+        container.innerHTML = '';
+        uploadedImages.forEach(dataUrl => {
+            const img = document.createElement('img');
+            img.src = dataUrl;
+            img.style.cssText = 'width:100%;border-radius:8px;display:block;user-select:none;-webkit-user-drag:none;';
+            container.appendChild(img);
+        });
+    }
+
+    function updateCanvasGap(val) {
+        document.getElementById('preview-panels').style.gap = val + 'px';
+        document.getElementById('preview-gap-val').textContent = val + 'px';
+    }
+
+    function addBubbleToCanvas(type, x, y) {
+        const layer = document.getElementById('bubble-layer');
+        layer.style.pointerEvents = 'auto';
+
+        const bubble = document.createElement('div');
+        bubble.className = 'canvas-bubble';
+        const defaultX = x !== undefined ? x : 80;
+        const defaultY = y !== undefined ? y : 80;
+        bubble.style.cssText = `
+            position:absolute; left:${defaultX}px; top:${defaultY}px;
+            min-width:90px; min-height:44px; padding:10px 16px;
+            background:${type === 'thought' ? '#f0f0ff' : '#fff'};
+            border:2.5px solid ${type === 'thought' ? '#6c5ce7' : '#1a1a1a'};
+            border-radius:${type === 'thought' ? '40px' : '18px'};
+            cursor:move; z-index:20;
+            font-family:Nunito,sans-serif; font-weight:700; font-size:14px;
+            user-select:none; box-shadow:3px 3px 0px rgba(0,0,0,0.3);
+        `;
+
+        const text = document.createElement('div');
+        text.contentEditable = true;
+        text.textContent = type === 'thought' ? 'Thinking...' : 'Say it!';
+        text.style.cssText = 'outline:none;text-align:center;min-width:40px;word-break:break-word;';
+        text.onclick = e => e.stopPropagation();
+        text.onmousedown = e => e.stopPropagation();
+
+        const tail = document.createElement('div');
+        if (type === 'speech') {
+            tail.style.cssText = 'position:absolute;bottom:-14px;left:18px;width:0;height:0;border-left:9px solid transparent;border-right:9px solid transparent;border-top:14px solid #1a1a1a;';
+            const tailIn = document.createElement('div');
+            tailIn.style.cssText = 'position:absolute;top:-13px;left:-7px;width:0;height:0;border-left:7px solid transparent;border-right:7px solid transparent;border-top:12px solid #fff;';
+            tail.appendChild(tailIn);
+        } else {
+            tail.innerHTML = `<div style="position:absolute;bottom:-22px;left:14px;display:flex;flex-direction:column;align-items:flex-start;gap:3px;">
+                <div style="width:12px;height:12px;border-radius:50%;background:#f0f0ff;border:2px solid #6c5ce7;"></div>
+                <div style="width:7px;height:7px;border-radius:50%;background:#f0f0ff;border:2px solid #6c5ce7;margin-left:3px;"></div>
+                <div style="width:4px;height:4px;border-radius:50%;background:#f0f0ff;border:2px solid #6c5ce7;margin-left:6px;"></div>
+            </div>`;
+        }
+
+        const del = document.createElement('button');
+        del.textContent = '✕';
+        del.style.cssText = 'position:absolute;top:-10px;right:-10px;background:#e24b4a;color:#fff;border:none;border-radius:50%;width:22px;height:22px;font-size:11px;cursor:pointer;font-weight:800;z-index:30;';
+        del.onmousedown = e => e.stopPropagation();
+        del.onclick = e => { e.stopPropagation(); bubble.remove(); };
+
+        const resizeHandle = document.createElement('div');
+        resizeHandle.style.cssText = 'position:absolute;bottom:2px;right:2px;width:14px;height:14px;cursor:se-resize;background:linear-gradient(135deg,transparent 50%,#aaa 50%);border-radius:0 0 4px 0;';
+        resizeHandle.onmousedown = e => {
+            e.stopPropagation();
+            const startX = e.clientX, startY = e.clientY;
+            const startW = bubble.offsetWidth, startH = bubble.offsetHeight;
+            const onMove = e2 => {
+                bubble.style.width = Math.max(80, startW + e2.clientX - startX) + 'px';
+                bubble.style.height = Math.max(40, startH + e2.clientY - startY) + 'px';
+            };
+            const onUp = () => { document.removeEventListener('mousemove', onMove); document.removeEventListener('mouseup', onUp); };
+            document.addEventListener('mousemove', onMove);
+            document.addEventListener('mouseup', onUp);
+        };
+
+        bubble.appendChild(text);
+        bubble.appendChild(tail);
+        bubble.appendChild(del);
+        bubble.appendChild(resizeHandle);
+        makeDraggableOnCanvas(bubble);
+        layer.appendChild(bubble);
+    }
+
+    function makeDraggableOnCanvas(el) {
+        let ox, oy;
+        el.addEventListener('mousedown', e => {
+            if (e.target.contentEditable === 'true' || e.target.tagName === 'BUTTON') return;
+            e.preventDefault();
+            const canvas = document.getElementById('preview-canvas');
+            ox = e.clientX - el.offsetLeft;
+            oy = e.clientY - el.offsetTop + canvas.scrollTop;
+            const move = e2 => {
+                el.style.left = (e2.clientX - ox) + 'px';
+                el.style.top = (e2.clientY - oy + document.getElementById('preview-canvas').scrollTop) + 'px';
+            };
+            const up = () => { document.removeEventListener('mousemove', move); document.removeEventListener('mouseup', up); };
+            document.addEventListener('mousemove', move);
+            document.addEventListener('mouseup', up);
+        });
+        el.addEventListener('touchstart', e => {
+            const t = e.touches[0];
+            const canvas = document.getElementById('preview-canvas');
+            ox = t.clientX - el.offsetLeft;
+            oy = t.clientY - el.offsetTop + canvas.scrollTop;
+            const move = e2 => {
+                const t2 = e2.touches[0];
+                el.style.left = (t2.clientX - ox) + 'px';
+                el.style.top = (t2.clientY - oy + document.getElementById('preview-canvas').scrollTop) + 'px';
+            };
+            const up = () => { document.removeEventListener('touchmove', move); document.removeEventListener('touchend', up); };
+            document.addEventListener('touchmove', move, { passive: true });
+            document.addEventListener('touchend', up);
+        }, { passive: true });
+    }
+
+    function clearCanvasBubbles() {
+        const layer = document.getElementById('bubble-layer');
+        if (layer) { layer.innerHTML = ''; layer.style.pointerEvents = 'none'; }
+        const slider = document.getElementById('preview-gap-slider');
+        if (slider) { slider.value = 8; updateCanvasGap(8); }
+    }
+
+    // 미리보기 화면 이벤트 리스너
+    document.getElementById('preview-back-header').addEventListener('click', () => showScreen('upload'));
+    document.getElementById('preview-edit-btn').addEventListener('click', () => showScreen('upload'));
+    document.getElementById('preview-reset-btn').addEventListener('click', clearCanvasBubbles);
+    document.getElementById('preview-gap-slider').addEventListener('input', function() { updateCanvasGap(this.value); });
+
+    document.getElementById('tool-speech').addEventListener('click', () => addBubbleToCanvas('speech'));
+    document.getElementById('tool-thought').addEventListener('click', () => addBubbleToCanvas('thought'));
+    document.getElementById('tool-speech').addEventListener('dragstart', e => e.dataTransfer.setData('bubbleType', 'speech'));
+    document.getElementById('tool-thought').addEventListener('dragstart', e => e.dataTransfer.setData('bubbleType', 'thought'));
+    document.getElementById('preview-canvas').addEventListener('dragover', e => e.preventDefault());
+    document.getElementById('preview-canvas').addEventListener('drop', e => {
+        e.preventDefault();
+        const type = e.dataTransfer.getData('bubbleType');
+        if (!type) return;
+        const canvas = document.getElementById('preview-canvas');
+        const rect = canvas.getBoundingClientRect();
+        addBubbleToCanvas(type, e.clientX - rect.left, e.clientY - rect.top + canvas.scrollTop);
     });
+
+    document.getElementById('preview-publish-btn').addEventListener('click', publishComic);
 
     // 파일 읽어서 배열에 추가하는 함수
     const handleFiles = (files) => {
@@ -1399,173 +1557,85 @@ const initApp = () => {
 
     thumbAddBtn.addEventListener('click', () => panelInput.click());
 
-    // 업로드 완료 처리 — 미리보기 모달 먼저 표시
+    // 업로드 버튼 → 미리보기/편집 화면으로 이동
     const uploadBtn = document.querySelector('.upload-btn');
-    const previewModal = document.getElementById('upload-preview-modal');
-    const previewBackBtn = document.getElementById('preview-back-btn');
-    const previewCancelBtn = document.getElementById('preview-cancel-btn');
-    const previewConfirmBtn = document.getElementById('preview-confirm-btn');
+    if (uploadBtn) uploadBtn.addEventListener('click', openPreview);
 
-    if (uploadBtn) {
-        uploadBtn.addEventListener('click', () => {
-            if (uploadedFiles.length === 0) {
-                alert('사진을 먼저 업로드해주세요!');
-                return;
+    // ── 발행 함수 ───────────────────────────────────────
+    async function publishComic() {
+        const titleInput = document.querySelector('.field-input').value.trim();
+        const descInput = document.getElementById('desc-area').value.trim();
+        const currentUser = loggedInUser || 'Guest';
+
+        const publishBtn = document.getElementById('preview-publish-btn');
+        if (publishBtn) { publishBtn.textContent = 'Publishing...'; publishBtn.disabled = true; }
+
+        const formData = new FormData();
+        formData.append('title', titleInput);
+        formData.append('desc', descInput);
+        formData.append('authorId', currentUser);
+        uploadedFiles.forEach(file => formData.append('images', file));
+
+        const resetForm = () => {
+            uploadedImages = [];
+            uploadedFiles = [];
+            renderThumbnails();
+            document.querySelector('.field-input').value = '';
+            document.getElementById('desc-area').value = '';
+            document.getElementById('char-count').textContent = '0 / 240 characters';
+        };
+
+        const injectPost = (newPostId) => {
+            const feedBody = document.querySelector('.feed-body');
+            const storyContainer = feedBody ? feedBody.querySelector('.story-container') : null;
+            if (storyContainer) {
+                feedBody.querySelector('.feed-empty-state')?.remove();
+                storyContainer.insertAdjacentHTML('afterend', buildPostCardHTML(newPostId));
+                renderFeedPost(newPostId);
             }
-            const titleInput = document.querySelector('.field-input').value.trim();
-            if (!titleInput) {
-                alert('제목을 입력해주세요.');
-                return;
-            }
-            const descInput = document.getElementById('desc-area').value.trim();
+        };
 
-            // 미리보기 모달에 정보 채우기
-            document.getElementById('preview-comic-title').textContent = titleInput;
-            document.getElementById('preview-comic-desc').textContent = descInput || 'No description';
-
-            const previewImagesEl = document.getElementById('preview-images');
-            previewImagesEl.innerHTML = '';
-            uploadedImages.forEach(dataUrl => {
-                const img = document.createElement('img');
-                img.src = dataUrl;
-                previewImagesEl.appendChild(img);
-            });
-
-            // 미리보기 모달 열기
-            previewModal.classList.remove('hidden');
-        });
-    }
-
-    // 미리보기 → 뒤로가기 / 수정
-    if (previewBackBtn) previewBackBtn.addEventListener('click', () => previewModal.classList.add('hidden'));
-    if (previewCancelBtn) previewCancelBtn.addEventListener('click', () => previewModal.classList.add('hidden'));
-
-    // 미리보기 → 최종 업로드
-    if (previewConfirmBtn) {
-        previewConfirmBtn.addEventListener('click', async () => {
-            const titleInput = document.querySelector('.field-input').value.trim();
-            const descInput = document.getElementById('desc-area').value.trim();
-            const currentUser = loggedInUser || 'Guest';
-
-            const formData = new FormData();
-            formData.append('title', titleInput);
-            formData.append('desc', descInput);
-            formData.append('authorId', currentUser);
-            uploadedFiles.forEach(file => formData.append('images', file));
-
-            previewConfirmBtn.textContent = 'Publishing...';
-            previewConfirmBtn.disabled = true;
-
-            // C1: 프로그레스 바 표시
-            const progressWrap = document.querySelector('.upload-progress-wrap') || (() => {
-                const w = document.createElement('div');
-                w.className = 'upload-progress-wrap';
-                w.innerHTML = '<div class="upload-progress-bar"></div>';
-                previewConfirmBtn.parentElement.insertBefore(w, previewConfirmBtn.nextSibling);
-                return w;
-            })();
-            progressWrap.style.display = 'block';
-            const progressBar = progressWrap.querySelector('.upload-progress-bar');
-            progressBar.style.width = '0%';
-            let progress = 0;
-            const progressInterval = setInterval(() => {
-                progress += Math.random() * 15;
-                if (progress > 85) progress = 85;
-                progressBar.style.width = progress + '%';
-            }, 200);
-
-            try {
-                const res = await fetch('/api/posts', {
-                    method: 'POST',
-                    body: formData
-                });
-                const data = await res.json();
-                
-                if (data.success) {
-                    const newPostId = data.post.id;
-                    POSTS_CONTENT[newPostId] = data.post;
-                    const ukey = currentUser.toLowerCase();
-                    if (USERS_DATA[ukey]) {
-                        USERS_DATA[ukey].postIds.unshift(newPostId);
-                    }
-
-                    // 피드화면에 출력
-                    const feedBody = document.querySelector('.feed-body');
-                    const storyContainer = feedBody ? feedBody.querySelector('.story-container') : null;
-                    if (storyContainer) {
-                        storyContainer.insertAdjacentHTML('afterend', buildPostCardHTML(newPostId));
-                        renderFeedPost(newPostId);
-                    }
-
-                    // 모달 닫기
-                    previewModal.classList.add('hidden');
-
-                    alert('업로드 완료! 피드에 성공적으로 게시되었습니다. 🎉');
-
-                    // 폼 초기화
-                    uploadedImages = [];
-                    uploadedFiles = [];
-                    renderThumbnails();
-                    document.querySelector('.field-input').value = '';
-                    document.getElementById('desc-area').value = '';
-                    document.getElementById('char-count').textContent = '0 / 240 characters';
-
-                    // 피드 화면으로 이동
-                    showScreen('feed');
-                } else {
-                    alert('업로드에 실패했습니다.');
-                }
-            } catch(e) {
-                // 오프라인 fallback — 로컬 포스트로 즉시 처리
+        try {
+            const res = await fetch('/api/posts', { method: 'POST', body: formData });
+            const data = await res.json();
+            if (data.success) {
+                const newPostId = data.post.id;
+                POSTS_CONTENT[newPostId] = data.post;
                 const ukey = currentUser.toLowerCase();
-                const author = USERS_DATA[ukey];
-                if (author) {
-                    const newPostId = `local-${Date.now()}`;
-                    const newPost = {
-                        id: newPostId,
-                        authorId: ukey,
-                        title: titleInput,
-                        desc: descInput || '',
-                        imageUrls: [...uploadedImages],
-                        imageClass: 'custom-upload',
-                        time: 'Just now',
-                        baseLikes: 0,
-                        likes: {},
-                        comments: []
-                    };
-                    POSTS_CONTENT[newPostId] = newPost;
-                    USERS_DATA[ukey].postIds.unshift(newPostId);
-                    saveLocalPost(newPost);
-
-                    const feedBody2 = document.querySelector('.feed-body');
-                    const storyContainer2 = feedBody2 ? feedBody2.querySelector('.story-container') : null;
-                    if (storyContainer2) {
-                        feedBody2.querySelector('.feed-empty-state')?.remove();
-                        storyContainer2.insertAdjacentHTML('afterend', buildPostCardHTML(newPostId));
-                        renderFeedPost(newPostId);
-                    }
-
-                    previewModal.classList.add('hidden');
-                    alert('업로드 완료! 피드에 성공적으로 게시되었습니다. 🎉');
-
-                    uploadedImages = [];
-                    uploadedFiles = [];
-                    renderThumbnails();
-                    document.querySelector('.field-input').value = '';
-                    document.getElementById('desc-area').value = '';
-                    document.getElementById('char-count').textContent = '0 / 240 characters';
-                    showScreen('feed');
-                } else {
-                    console.error('업로드 실패', e);
-                }
-            } finally {
-                clearInterval(progressInterval);
-                progressBar.style.width = '100%';
-                setTimeout(() => { progressWrap.style.display = 'none'; progressBar.style.width = '0%'; }, 500);
-                previewConfirmBtn.textContent = '⬆ Publish to Feed';
-                previewConfirmBtn.disabled = false;
+                if (USERS_DATA[ukey]) USERS_DATA[ukey].postIds.unshift(newPostId);
+                injectPost(newPostId);
+                alert('Upload complete! 🎉');
+                resetForm();
+                clearCanvasBubbles();
+                showScreen('feed');
+            } else {
+                alert('Upload failed. Please try again.');
             }
-        });
+        } catch(e) {
+            // 오프라인 fallback
+            const ukey = currentUser.toLowerCase();
+            if (USERS_DATA[ukey]) {
+                const newPostId = `local-${Date.now()}`;
+                const newPost = {
+                    id: newPostId, authorId: ukey, title: titleInput,
+                    desc: descInput || '', imageUrls: [...uploadedImages],
+                    imageClass: 'custom-upload', time: 'Just now',
+                    baseLikes: 0, likes: {}, comments: []
+                };
+                POSTS_CONTENT[newPostId] = newPost;
+                USERS_DATA[ukey].postIds.unshift(newPostId);
+                saveLocalPost(newPost);
+                injectPost(newPostId);
+                alert('Upload complete! 🎉');
+                resetForm();
+                clearCanvasBubbles();
+                showScreen('feed');
+            } else {
+                console.error('Upload failed', e);
+            }
+        } finally {
+            if (publishBtn) { publishBtn.textContent = '⬆ Publish to Feed'; publishBtn.disabled = false; }
+        }
     }
 
     const descArea = document.getElementById('desc-area');

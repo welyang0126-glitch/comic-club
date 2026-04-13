@@ -1726,6 +1726,20 @@ body {
     position: relative;
     overflow: visible;
 }
+#preview-screen {
+    background: #1a1a1a;
+    min-height: 100vh;
+}
+.canvas-bubble {
+    position: absolute;
+    z-index: 20;
+}
+.tool-item {
+    transition: transform 0.1s;
+}
+.tool-item:hover {
+    transform: scale(1.05);
+}
 .speech-bubble {
     position: absolute;
     z-index: 10;
