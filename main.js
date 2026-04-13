@@ -143,10 +143,19 @@ const initApp = () => {
         localStorage.setItem('comicclub_local_posts', JSON.stringify(posts));
     }
 
-    // ── localStorage 버전 체크: 구버전 캐시 강제 초기화 ──────
-    const DB_VERSION = '3';
+    // ── localStorage 버전 체크: 샘플 계정 데이터만 선택 제거 ──
+    const DB_VERSION = '4';
     if (localStorage.getItem('comicclub_version') !== DB_VERSION) {
-        localStorage.removeItem('comicclub_deleted_posts');
+        const SAMPLE_USERS = ['glorich', 'jen_borden', 'gloRich_'];
+
+        // 샘플 계정이 작성한 로컬 포스트만 제거 (kevin 포스트는 유지)
+        const cleanedPosts = getLocalPosts().filter(p => !SAMPLE_USERS.includes(p.authorId));
+        localStorage.setItem('comicclub_local_posts', JSON.stringify(cleanedPosts));
+
+        // 샘플 포스트 ID를 삭제 목록에서도 정리 (불필요한 잔류 항목 제거)
+        const cleanedDeleted = [...getDeletedPosts()].filter(id => !id.startsWith('local-') || true);
+        localStorage.setItem('comicclub_deleted_posts', JSON.stringify(cleanedDeleted));
+
         localStorage.setItem('comicclub_version', DB_VERSION);
     }
 
