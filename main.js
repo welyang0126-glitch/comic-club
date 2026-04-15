@@ -612,7 +612,7 @@ const initApp = () => {
             <circle cx="37" cy="46" r="3" fill="#ff7da7" opacity="0.4" />
             <circle cx="63" cy="46" r="3" fill="#ff7da7" opacity="0.4" />
             ${expressions[expr] || expressions['smile']}
-            ${gender === 'boy' ? `<path d="M22 45 C15 10, 85 10, 78 45 C70 25, 30 25, 22 45" fill="${hc}" />` : `<path d="M22 45 C30 20, 70 20, 78 45 C75 30, 25 30, 22 45" fill="${hc}" />`}
+            ${gender === 'boy' ? `<path d="M22 45 C15 10, 85 10, 78 45 C70 25, 30 25, 22 45" fill="${hc}" />` : `<path d="M22 45 C28 8, 72 8, 78 45 C74 22, 26 22, 22 45" fill="${hc}" />`}
         </svg>
         `.trim().replace(/\n/g, '').replace(/\s+/g, ' ');
         return `url('data:image/svg+xml,${encodeURIComponent(svg)}')`;
