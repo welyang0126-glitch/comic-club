@@ -394,6 +394,7 @@ const initApp = () => {
 
         if (name === 'profile') renderProfile();
         if (name === 'feed') initFeed();
+        if (name === 'shop') refreshShopOwnedState();
     }
 
     // ── 유저 프로필 화면 (작가별 개인 피드) ───────────────
@@ -697,6 +698,21 @@ const initApp = () => {
         }
     }
 
+    // ── Shop 구매 상태 반영 ────────────────────────────
+    function refreshShopOwnedState() {
+        document.querySelectorAll('.shop-card, .shop-featured').forEach(card => {
+            const itemName = card.dataset.name || '';
+            if (purchasedItems.has(itemName)) {
+                const btn = card.querySelector('.buy-btn');
+                if (btn) {
+                    btn.textContent = '✅ Owned';
+                    btn.disabled = true;
+                    btn.style.opacity = '0.6';
+                }
+            }
+        });
+    }
+
     // ── 클릭 이벤트 통합 처리 ─────────────────────────
     document.addEventListener('click', (e) => {
 
@@ -894,6 +910,7 @@ const initApp = () => {
             hearts -= price;
             purchasedItems.add(itemName);
             updateHeartDisplays();
+            renderProfile();
 
             // D3: 언락 애니메이션
             card.classList.add('unlocking');
