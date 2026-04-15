@@ -1416,38 +1416,55 @@ const initApp = () => {
 
     function addBubbleToCanvas(type, x, y) {
         const layer = document.getElementById('bubble-layer');
+        if (!layer) return;
         layer.style.pointerEvents = 'auto';
 
         const bubble = document.createElement('div');
         bubble.className = 'canvas-bubble';
-        const defaultX = x !== undefined ? x : 80;
-        const defaultY = y !== undefined ? y : 80;
+
+        const defaultX = (x !== undefined) ? x : 100;
+        const defaultY = (y !== undefined) ? y : 100;
+
+        let bubbleW = 120;
+        let bubbleH = 60;
+        const MIN_W = 80;
+        const MIN_H = 44;
+
         bubble.style.cssText = `
             position:absolute; left:${defaultX}px; top:${defaultY}px;
-            min-width:90px; min-height:44px; padding:10px 16px;
+            width:${bubbleW}px; height:${bubbleH}px;
+            padding:10px 14px;
             background:${type === 'thought' ? '#f0f0ff' : '#fff'};
             border:2.5px solid ${type === 'thought' ? '#6c5ce7' : '#1a1a1a'};
             border-radius:${type === 'thought' ? '40px' : '18px'};
             cursor:move; z-index:20;
             font-family:Nunito,sans-serif; font-weight:700; font-size:14px;
             user-select:none; box-shadow:3px 3px 0px rgba(0,0,0,0.3);
+            box-sizing:border-box; overflow:hidden;
+            display:flex; align-items:center; justify-content:center;
         `;
 
         const text = document.createElement('div');
         text.contentEditable = true;
         text.textContent = type === 'thought' ? 'Thinking...' : 'Say it!';
-        text.style.cssText = 'outline:none;text-align:center;min-width:40px;word-break:break-word;';
+        text.style.cssText = 'outline:none;text-align:center;word-break:break-word;width:100%;font-size:14px;font-weight:700;line-height:1.3;pointer-events:auto;';
         text.onclick = e => e.stopPropagation();
         text.onmousedown = e => e.stopPropagation();
+        text.ontouchstart = e => e.stopPropagation();
+
+        function updateFontSize() {
+            const base = Math.min(bubble.offsetWidth, bubble.offsetHeight);
+            text.style.fontSize = Math.max(10, Math.min(28, Math.round(base * 0.22))) + 'px';
+        }
 
         const tail = document.createElement('div');
         if (type === 'speech') {
-            tail.style.cssText = 'position:absolute;bottom:-14px;left:18px;width:0;height:0;border-left:9px solid transparent;border-right:9px solid transparent;border-top:14px solid #1a1a1a;';
+            tail.style.cssText = 'position:absolute;bottom:-14px;left:20px;width:0;height:0;border-left:9px solid transparent;border-right:9px solid transparent;border-top:14px solid #1a1a1a;pointer-events:none;';
             const tailIn = document.createElement('div');
             tailIn.style.cssText = 'position:absolute;top:-13px;left:-7px;width:0;height:0;border-left:7px solid transparent;border-right:7px solid transparent;border-top:12px solid #fff;';
             tail.appendChild(tailIn);
         } else {
-            tail.innerHTML = `<div style="position:absolute;bottom:-22px;left:14px;display:flex;flex-direction:column;align-items:flex-start;gap:3px;">
+            tail.innerHTML = `<div style="position:absolute;bottom:-24px;left:16px;display:flex;flex-direction:column;align-items:flex-start;gap:3px;pointer-events:none;">
                 <div style="width:12px;height:12px;border-radius:50%;background:#f0f0ff;border:2px solid #6c5ce7;"></div>
                 <div style="width:7px;height:7px;border-radius:50%;background:#f0f0ff;border:2px solid #6c5ce7;margin-left:3px;"></div>
                 <div style="width:4px;height:4px;border-radius:50%;background:#f0f0ff;border:2px solid #6c5ce7;margin-left:6px;"></div>
@@ -1456,24 +1473,50 @@ const initApp = () => {
 
         const del = document.createElement('button');
         del.textContent = '✕';
-        del.style.cssText = 'position:absolute;top:-10px;right:-10px;background:#e24b4a;color:#fff;border:none;border-radius:50%;width:22px;height:22px;font-size:11px;cursor:pointer;font-weight:800;z-index:30;';
+        del.style.cssText = 'position:absolute;top:-10px;right:-10px;background:#e24b4a;color:#fff;border:none;border-radius:50%;width:22px;height:22px;font-size:11px;cursor:pointer;font-weight:800;z-index:30;line-height:1;display:flex;align-items:center;justify-content:center;';
         del.onmousedown = e => e.stopPropagation();
+        del.ontouchstart = e => e.stopPropagation();
         del.onclick = e => { e.stopPropagation(); bubble.remove(); };
 
         const resizeHandle = document.createElement('div');
-        resizeHandle.style.cssText = 'position:absolute;bottom:2px;right:2px;width:14px;height:14px;cursor:se-resize;background:linear-gradient(135deg,transparent 50%,#aaa 50%);border-radius:0 0 4px 0;';
-        resizeHandle.onmousedown = e => {
+        resizeHandle.style.cssText = 'position:absolute;bottom:0;right:0;width:20px;height:20px;cursor:se-resize;z-index:30;background:transparent;display:flex;align-items:flex-end;justify-content:flex-end;padding:3px;';
+        resizeHandle.innerHTML = `<svg width="10" height="10" viewBox="0 0 10 10" style="pointer-events:none;">
+            <circle cx="8" cy="8" r="1.5" fill="${type === 'thought' ? '#6c5ce7' : '#aaa'}"/>
+            <circle cx="4" cy="8" r="1.5" fill="${type === 'thought' ? '#6c5ce7' : '#aaa'}"/>
+            <circle cx="8" cy="4" r="1.5" fill="${type === 'thought' ? '#6c5ce7' : '#aaa'}"/>
+        </svg>`;
+
+        resizeHandle.addEventListener('mousedown', e => {
+            e.preventDefault();
             e.stopPropagation();
             const startX = e.clientX, startY = e.clientY;
             const startW = bubble.offsetWidth, startH = bubble.offsetHeight;
             const onMove = e2 => {
-                bubble.style.width = Math.max(80, startW + e2.clientX - startX) + 'px';
-                bubble.style.height = Math.max(40, startH + e2.clientY - startY) + 'px';
+                bubble.style.width = Math.max(MIN_W, startW + (e2.clientX - startX)) + 'px';
+                bubble.style.height = Math.max(MIN_H, startH + (e2.clientY - startY)) + 'px';
+                updateFontSize();
             };
             const onUp = () => { document.removeEventListener('mousemove', onMove); document.removeEventListener('mouseup', onUp); };
             document.addEventListener('mousemove', onMove);
             document.addEventListener('mouseup', onUp);
-        };
+        });
+
+        resizeHandle.addEventListener('touchstart', e => {
+            e.preventDefault();
+            e.stopPropagation();
+            const t0 = e.touches[0];
+            const startX = t0.clientX, startY = t0.clientY;
+            const startW = bubble.offsetWidth, startH = bubble.offsetHeight;
+            const onMove = e2 => {
+                const t = e2.touches[0];
+                bubble.style.width = Math.max(MIN_W, startW + (t.clientX - startX)) + 'px';
+                bubble.style.height = Math.max(MIN_H, startH + (t.clientY - startY)) + 'px';
+                updateFontSize();
+            };
+            const onUp = () => { document.removeEventListener('touchmove', onMove); document.removeEventListener('touchend', onUp); };
+            document.addEventListener('touchmove', onMove, { passive: false });
+            document.addEventListener('touchend', onUp);
+        }, { passive: false });
 
         bubble.appendChild(text);
         bubble.appendChild(tail);
@@ -1481,44 +1524,47 @@ const initApp = () => {
         bubble.appendChild(resizeHandle);
         makeDraggableOnCanvas(bubble);
         layer.appendChild(bubble);
+
+        updateFontSize();
     }
 
     function makeDraggableOnCanvas(el) {
-        let ox, oy;
-        el.addEventListener('mousedown', e => {
-            if (e.target.contentEditable === 'true' || e.target.tagName === 'BUTTON') return;
-            e.preventDefault();
+        let ox, oy, dragging = false;
+
+        const onStart = (clientX, clientY) => {
             const canvas = document.getElementById('preview-canvas');
-            const canvasRect = canvas.getBoundingClientRect();
-            const elRect = el.getBoundingClientRect();
-            ox = e.clientX - elRect.left;
-            oy = e.clientY - elRect.top;
-            const move = e2 => {
-                const c = document.getElementById('preview-canvas');
-                const cr = c.getBoundingClientRect();
-                el.style.left = (e2.clientX - ox - cr.left + c.scrollLeft) + 'px';
-                el.style.top = (e2.clientY - oy - cr.top + c.scrollTop) + 'px';
-            };
-            const up = () => { document.removeEventListener('mousemove', move); document.removeEventListener('mouseup', up); };
+            ox = clientX - el.offsetLeft;
+            oy = clientY - el.offsetTop + canvas.scrollTop;
+            dragging = true;
+        };
+        const onMove = (clientX, clientY) => {
+            if (!dragging) return;
+            const canvas = document.getElementById('preview-canvas');
+            el.style.left = (clientX - ox) + 'px';
+            el.style.top = (clientY - oy + canvas.scrollTop) + 'px';
+        };
+        const onEnd = () => { dragging = false; };
+
+        el.addEventListener('mousedown', e => {
+            if (e.target.closest('[style*="se-resize"]')) return;
+            if (e.target.tagName === 'BUTTON') return;
+            if (e.target.contentEditable === 'true') return;
+            e.preventDefault();
+            onStart(e.clientX, e.clientY);
+            const move = e2 => onMove(e2.clientX, e2.clientY);
+            const up = () => { onEnd(); document.removeEventListener('mousemove', move); document.removeEventListener('mouseup', up); };
             document.addEventListener('mousemove', move);
             document.addEventListener('mouseup', up);
         });
+
         el.addEventListener('touchstart', e => {
-            e.preventDefault();
+            if (e.target.closest('[style*="se-resize"]')) return;
+            if (e.target.tagName === 'BUTTON') return;
+            if (e.target.contentEditable === 'true') return;
             const t = e.touches[0];
-            const canvas = document.getElementById('preview-canvas');
-            const canvasRect = canvas.getBoundingClientRect();
-            const elRect = el.getBoundingClientRect();
-            ox = t.clientX - elRect.left;
-            oy = t.clientY - elRect.top;
-            const move = e2 => {
-                const t2 = e2.touches[0];
-                const c = document.getElementById('preview-canvas');
-                const cr = c.getBoundingClientRect();
-                el.style.left = (t2.clientX - ox - cr.left + c.scrollLeft) + 'px';
-                el.style.top = (t2.clientY - oy - cr.top + c.scrollTop) + 'px';
-            };
-            const up = () => { document.removeEventListener('touchmove', move); document.removeEventListener('touchend', up); };
+            onStart(t.clientX, t.clientY);
+            const move = e2 => { const t2 = e2.touches[0]; onMove(t2.clientX, t2.clientY); };
+            const up = () => { onEnd(); document.removeEventListener('touchmove', move); document.removeEventListener('touchend', up); };
             document.addEventListener('touchmove', move, { passive: false });
             document.addEventListener('touchend', up);
         }, { passive: false });
