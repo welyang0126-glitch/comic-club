@@ -254,6 +254,24 @@ const initApp = () => {
         } catch(e) { console.error('댓글 작성 실패', e); }
     }
 
+    // ── 포스트 삭제 ────────────────────────────────────
+    function deletePost(postId) {
+        if (!confirm('Delete this post?')) return;
+        // 메모리에서 제거
+        delete POSTS_CONTENT[postId];
+        // localStorage에서 제거
+        persistDeletedPost(postId);
+        const remaining = getLocalPosts().filter(p => p.id !== postId);
+        localStorage.setItem('comicclub_local_posts', JSON.stringify(remaining));
+        const db = getDB();
+        db.posts = (db.posts || []).filter(id => id !== postId);
+        saveDB(db);
+        // DOM에서 제거
+        document.querySelector(`.feed-post[data-post-id="${postId}"]`)?.remove();
+        showToast('Post deleted.');
+        initFeed();
+    }
+
     // ── 피드 렌더 함수 ─────────────────────────────────
     function renderFeedPost(postId) {
         const currentUser = loggedInUser || 'Guest';
@@ -361,6 +379,16 @@ const initApp = () => {
     // 서버 데이터 최초 로딩
     loadBackendData();
 
+    // ── localStorage DB 헬퍼 ─────────────────────────
+    function getDB() {
+        try { return JSON.parse(localStorage.getItem('comicclub_db2') || 'null') || { posts: [], users: {} }; }
+        catch { return { posts: [], users: {} }; }
+    }
+    function saveDB(db) {
+        try { localStorage.setItem('comicclub_db2', JSON.stringify(db)); } catch(e) { console.warn('saveDB failed', e); }
+    }
+    function getUser() { return (loggedInUser || 'Guest').toLowerCase(); }
+
     // ── 상태 ──────────────────────────────────────────
     let hearts = 108;
     let loggedInUser = 'Guest';
@@ -400,8 +428,12 @@ const initApp = () => {
     // ── 유저 프로필 화면 (작가별 개인 피드) ───────────────
     function buildPostCardHTML(postId) {
         const content = POSTS_CONTENT[postId];
-        const author = USERS_DATA[content.authorId.toLowerCase()];
-        if (!content || !author) return '';
+        if (!content) return '';
+        const author = USERS_DATA[content.authorId.toLowerCase()] || {
+            name: content.authorId, handle: '@' + content.authorId,
+            color: '#aaa', initial: content.authorId.charAt(0).toUpperCase(),
+            bio: '', followers: 0, postIds: []
+        };
         return `
         <div class="feed-post" data-post-id="${postId}">
             <div class="post-user" data-user-id="${content.authorId}" style="cursor:pointer;">
@@ -1082,8 +1114,29 @@ const initApp = () => {
                 alert('아이디가 존재하지 않거나 비밀번호가 일치하지 않습니다.');
             }
         } catch(e) {
-            console.error('Login failed', e);
-            alert('로그인 처리 중 오류가 발생했습니다.');
+            // 백엔드 없을 때: USERS_DB 로컬 자격증명으로 오프라인 로그인
+            const idLower = id.toLowerCase();
+            const localUser = USERS_DB[idLower];
+            if (localUser && localUser.pwd === pwd) {
+                loginModal.classList.add('hidden');
+                loginForm.reset();
+                loggedInUser = idLower;
+                // USERS_DATA에 없으면 동적 추가
+                if (!USERS_DATA[idLower]) {
+                    USERS_DATA[idLower] = {
+                        name: localUser.name, handle: '@' + idLower,
+                        color: '#7bc8e0', initial: localUser.name.charAt(0).toUpperCase(),
+                        bio: '', followers: 0, postIds: []
+                    };
+                }
+                const color = USERS_DATA[idLower].color;
+                const initial = USERS_DATA[idLower].initial;
+                updateAllAvatarBtns(initial, color);
+                document.querySelector('main.hero-section')?.style && (document.querySelector('main.hero-section').style.display = 'none');
+                showScreen('feed');
+            } else {
+                alert('ID 또는 비밀번호가 올바르지 않습니다.');
+            }
         }
     });
 
@@ -1637,77 +1690,71 @@ const initApp = () => {
     async function publishComic() {
         const titleInput = document.querySelector('.field-input').value.trim();
         const descInput = document.getElementById('desc-area').value.trim();
-        const currentUser = loggedInUser || 'Guest';
+        if (uploadedImages.length === 0) { showToast('Please add panels first!'); return; }
+        if (!titleInput) { showToast('Please enter a comic title!'); return; }
+        if (uploadedImages.length > 5) showToast('Max 5 panels recommended for performance');
 
         const publishBtn = document.getElementById('preview-publish-btn');
         if (publishBtn) { publishBtn.textContent = 'Publishing...'; publishBtn.disabled = true; }
 
-        const formData = new FormData();
-        formData.append('title', titleInput);
-        formData.append('desc', descInput);
-        formData.append('authorId', currentUser);
-        uploadedFiles.forEach(file => formData.append('images', file));
+        const ukey = getUser();
 
-        const resetForm = () => {
-            uploadedImages = [];
-            uploadedFiles = [];
-            renderThumbnails();
-            document.querySelector('.field-input').value = '';
-            document.getElementById('desc-area').value = '';
-            document.getElementById('char-count').textContent = '0 / 240 characters';
+        // 로그인하지 않은 경우 게스트 유저 자동 생성
+        if (!USERS_DATA[ukey]) {
+            USERS_DATA[ukey] = {
+                name: loggedInUser || 'Guest', handle: '@' + ukey,
+                color: '#aaa', initial: (loggedInUser || 'G').charAt(0).toUpperCase(),
+                bio: '', followers: 0, postIds: []
+            };
+        }
+
+        const newPostId = `local-${Date.now()}`;
+        const newPost = {
+            id: newPostId,
+            authorId: ukey,
+            title: titleInput,
+            desc: descInput || '',
+            imageUrls: [...uploadedImages],   // base64 배열
+            imageClass: 'custom-upload',
+            time: new Date().toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }),
+            baseLikes: 0, likes: {}, comments: []
         };
 
-        const injectPost = (newPostId) => {
-            const feedBody = document.querySelector('.feed-body');
-            const storyContainer = feedBody ? feedBody.querySelector('.story-container') : null;
-            if (storyContainer) {
-                feedBody.querySelector('.feed-empty-state')?.remove();
-                storyContainer.insertAdjacentHTML('afterend', buildPostCardHTML(newPostId));
+        // 1) 메모리 반영
+        POSTS_CONTENT[newPostId] = newPost;
+        USERS_DATA[ukey].postIds.unshift(newPostId);
+
+        // 2) localStorage 이중 저장 (getLocalPosts + DB)
+        saveLocalPost(newPost);
+        const db = getDB();
+        db.posts.unshift(newPostId);
+        saveDB(db);
+
+        // 3) 피드 DOM 즉시 주입
+        const feedBody = document.querySelector('.feed-body');
+        const storyContainer = feedBody ? feedBody.querySelector('.story-container') : null;
+        if (storyContainer) {
+            feedBody.querySelector('.feed-empty-state')?.remove();
+            const html = buildPostCardHTML(newPostId);
+            if (html) {
+                storyContainer.insertAdjacentHTML('afterend', html);
                 renderFeedPost(newPostId);
             }
-        };
-
-        try {
-            const res = await fetch('/api/posts', { method: 'POST', body: formData });
-            const data = await res.json();
-            if (data.success) {
-                const newPostId = data.post.id;
-                POSTS_CONTENT[newPostId] = data.post;
-                const ukey = currentUser.toLowerCase();
-                if (USERS_DATA[ukey]) USERS_DATA[ukey].postIds.unshift(newPostId);
-                injectPost(newPostId);
-                alert('Upload complete! 🎉');
-                resetForm();
-                clearCanvasBubbles();
-                showScreen('feed');
-            } else {
-                alert('Upload failed. Please try again.');
-            }
-        } catch(e) {
-            // 오프라인 fallback
-            const ukey = currentUser.toLowerCase();
-            if (USERS_DATA[ukey]) {
-                const newPostId = `local-${Date.now()}`;
-                const newPost = {
-                    id: newPostId, authorId: ukey, title: titleInput,
-                    desc: descInput || '', imageUrls: [...uploadedImages],
-                    imageClass: 'custom-upload', time: 'Just now',
-                    baseLikes: 0, likes: {}, comments: []
-                };
-                POSTS_CONTENT[newPostId] = newPost;
-                USERS_DATA[ukey].postIds.unshift(newPostId);
-                saveLocalPost(newPost);
-                injectPost(newPostId);
-                alert('Upload complete! 🎉');
-                resetForm();
-                clearCanvasBubbles();
-                showScreen('feed');
-            } else {
-                console.error('Upload failed', e);
-            }
-        } finally {
-            if (publishBtn) { publishBtn.textContent = '⬆ Publish to Feed'; publishBtn.disabled = false; }
         }
+
+        // 4) 폼/캔버스 초기화
+        uploadedImages = [];
+        uploadedFiles = [];
+        renderThumbnails();
+        document.querySelector('.field-input').value = '';
+        document.getElementById('desc-area').value = '';
+        document.getElementById('char-count').textContent = '0 / 240 characters';
+        clearCanvasBubbles();
+
+        if (publishBtn) { publishBtn.textContent = '⬆ Publish to Feed'; publishBtn.disabled = false; }
+
+        showToast('🎉 Comic published!');
+        setTimeout(() => showScreen('feed'), 600);
     }
 
     const descArea = document.getElementById('desc-area');
