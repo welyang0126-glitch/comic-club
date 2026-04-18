@@ -188,88 +188,102 @@ app.get('/api/auth/check', async (req, res) => {
 });
 
 app.get('/api/users', async (req, res) => {
-    if (pool) {
-        const result = await pool.query('SELECT id, data FROM users');
-        const usersObj = {};
-        result.rows.forEach(r => usersObj[r.id] = r.data);
-        res.json(usersObj);
-    } else {
-        res.json(localUsers);
+    try {
+        const users = {};
+        if (pool) {
+            const result = await pool.query('SELECT id, data FROM users');
+            result.rows.forEach(r => {
+                const d = r.data;
+                users[r.id] = {
+                    id: r.id,
+                    name: d.name || r.id,
+                    handle: d.handle || '@' + r.id,
+                    color: d.color || '#f5d000',
+                    initial: d.initial || (d.name || r.id).charAt(0).toUpperCase(),
+                    bio: d.bio || '',
+                    followers: d.followers || 0,
+                    hearts: d.hearts || 0,
+                    postIds: d.postIds || []
+                };
+            });
+        } else {
+            Object.entries(localUsers).forEach(([id, d]) => {
+                users[id] = {
+                    id, name: d.name || id, handle: d.handle || '@' + id,
+                    color: d.color || '#f5d000',
+                    initial: d.initial || (d.name || id).charAt(0).toUpperCase(),
+                    bio: d.bio || '', followers: d.followers || 0,
+                    hearts: d.hearts || 0, postIds: d.postIds || []
+                };
+            });
+        }
+        res.json({ success: true, users });
+    } catch (err) {
+        res.status(500).json({ success: false, error: err.message });
     }
 });
 
 app.get('/api/posts', async (req, res) => {
-    if (pool) {
-        // created_at 기준으로 최신 글순 정렬
-        const result = await pool.query('SELECT id, data FROM posts ORDER BY created_at DESC');
-        const postsObj = {};
-        result.rows.forEach(r => postsObj[r.id] = r.data);
-        res.json(postsObj);
-    } else {
-        res.json(localPosts);
+    try {
+        let posts = [];
+        if (pool) {
+            const result = await pool.query('SELECT id, data, created_at FROM posts ORDER BY created_at DESC');
+            posts = result.rows.map(r => ({ ...r.data, id: r.id }));
+        } else {
+            posts = Object.values(localPosts);
+        }
+        res.json({ success: true, posts });
+    } catch (err) {
+        res.status(500).json({ success: false, error: err.message });
     }
 });
 
-app.post('/api/posts', upload.array('images', 20), async (req, res) => {
-    const { title, desc, authorId } = req.body;
-    const authorKey = authorId.toLowerCase();
-    const imageUrls = [];
+app.post('/api/posts', async (req, res) => {
+    try {
+        const body = req.body;
+        const authorKey = (body.authorId || body.uid || '').toLowerCase();
+        const newPostId = body.id || ('post-' + Date.now());
+        const postData = {
+            ...body,
+            id: newPostId,
+            authorId: authorKey,
+            time: body.time || 'Just now',
+            baseLikes: body.baseLikes || 0,
+            likes: body.likes || {},
+            comments: body.comments || []
+        };
 
-    if (pool) {
-        for (const file of req.files) {
-            const imageId = 'img-' + Date.now() + '-' + Math.round(Math.random() * 1E9);
-            await pool.query('INSERT INTO images (id, data, mimetype) VALUES ($1, $2, $3)', [imageId, file.buffer, file.mimetype]);
-            imageUrls.push(`/api/images/${imageId}`);
+        if (pool) {
+            await pool.query(
+                'INSERT INTO posts (id, data) VALUES ($1, $2) ON CONFLICT (id) DO UPDATE SET data = $2',
+                [newPostId, postData]
+            );
+            const userRes = await pool.query('SELECT data FROM users WHERE id = $1', [authorKey]);
+            if (userRes.rows.length > 0) {
+                const userData = userRes.rows[0].data;
+                if (!userData.postIds) userData.postIds = [];
+                if (!userData.postIds.includes(newPostId)) userData.postIds.unshift(newPostId);
+                await pool.query('UPDATE users SET data = $1 WHERE id = $2', [userData, authorKey]);
+            }
+        } else {
+            localPosts[newPostId] = postData;
+            saveLocalJSON(path.join(DATA_DIR, 'posts.json'), localPosts);
+            if (localUsers[authorKey]) {
+                if (!localUsers[authorKey].postIds) localUsers[authorKey].postIds = [];
+                localUsers[authorKey].postIds.unshift(newPostId);
+                saveLocalJSON(path.join(DATA_DIR, 'users.json'), localUsers);
+            }
         }
-    } else {
-        // 로컬에서는 기존 파일 시스템 폴더에 저장 (Fallback)
-        for (const file of req.files) {
-            const filename = Date.now() + '-' + Math.round(Math.random() * 1E9) + path.extname(file.originalname);
-            fs.writeFileSync(path.join(UPLOADS_DIR, filename), file.buffer);
-            imageUrls.push(`/uploads/${filename}`);
-        }
+        res.json({ success: true, post: postData });
+    } catch (err) {
+        console.error('POST /api/posts error:', err);
+        res.status(500).json({ success: false, error: err.message });
     }
-    
-    const newPostId = 'post-' + Date.now();
-    const post = {
-        id: newPostId,
-        title,
-        authorId: authorKey,
-        imageClass: 'custom-upload',
-        imageUrl: imageUrls[0], 
-        imageUrls: imageUrls,   
-        label: '🌟 NEW POST',
-        scene: 'A new adventure begins...',
-        desc: desc || 'No description provided.',
-        time: 'Just now',
-        baseLikes: 0,
-        likes: {},
-        comments: []
-    };
-    
-    if (pool) {
-        await pool.query('INSERT INTO posts (id, data) VALUES ($1, $2)', [newPostId, post]);
-        const userRes = await pool.query('SELECT data FROM users WHERE id = $1', [authorKey]);
-        if (userRes.rows.length > 0) {
-            const userData = userRes.rows[0].data;
-            userData.postIds.unshift(newPostId);
-            await pool.query('UPDATE users SET data = $1 WHERE id = $2', [userData, authorKey]);
-        }
-    } else {
-        localPosts[newPostId] = post;
-        saveLocalJSON(path.join(DATA_DIR, 'posts.json'), localPosts);
-        if (localUsers[authorKey]) {
-            localUsers[authorKey].postIds.unshift(newPostId);
-            saveLocalJSON(path.join(DATA_DIR, 'users.json'), localUsers);
-        }
-    }
-
-    res.json({ success: true, post });
 });
 
 app.post('/api/posts/:id/like', async (req, res) => {
     const postId = req.params.id;
-    const { userId } = req.body;
+    const userId = req.body.uid || req.body.userId;
     
     if (pool) {
         const postRes = await pool.query('SELECT data FROM posts WHERE id = $1', [postId]);

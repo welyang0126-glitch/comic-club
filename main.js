@@ -165,42 +165,56 @@ const initApp = () => {
                 fetch('/api/users'),
                 fetch('/api/posts')
             ]);
-            if (!usersRes.ok || !postsRes.ok) throw new Error('API error');
-            USERS_DATA = await usersRes.json();
-            USERS_DB = USERS_DATA;
-            POSTS_CONTENT = await postsRes.json();
+            const usersData = await usersRes.json();
+            const postsData = await postsRes.json();
+
+            // 새 형식: { success: true, users: {...} }
+            USERS_DATA = (usersData.success && usersData.users) ? usersData.users : usersData;
+            USERS_DB   = USERS_DATA;
+
+            // 새 형식: { success: true, posts: [...] }
+            if (postsData.success && Array.isArray(postsData.posts)) {
+                POSTS_CONTENT = {};
+                postsData.posts.forEach(p => { POSTS_CONTENT[p.id] = p; });
+            } else {
+                POSTS_CONTENT = postsData; // 구형 오브젝트 형식 호환
+            }
         } catch(e) {
-            // 백엔드 없을 때 fallback 데이터 사용
             console.warn('백엔드 없음 → 오프라인 데이터 사용');
-            USERS_DATA = FALLBACK_USERS;
-            USERS_DB   = FALLBACK_USERS;
-            POSTS_CONTENT = { ...FALLBACK_POSTS }; // 얕은 복사 — FALLBACK_POSTS 상수 변이 방지
+            USERS_DATA = { ...FALLBACK_USERS };
+            USERS_DB   = USERS_DATA;
+            POSTS_CONTENT = { ...FALLBACK_POSTS };
         }
 
-        // localStorage에 저장된 로컬 업로드 포스트 병합
+        // localStorage 로컬 포스트 병합 (백엔드에 없는 것만)
         getLocalPosts().forEach(post => {
-            POSTS_CONTENT[post.id] = post;
-            const ukey = post.authorId.toLowerCase();
-            if (USERS_DATA[ukey] && !USERS_DATA[ukey].postIds.includes(post.id)) {
-                USERS_DATA[ukey].postIds.unshift(post.id);
-            }
+            if (!POSTS_CONTENT[post.id]) POSTS_CONTENT[post.id] = post;
         });
 
-        // 삭제된 포스트 필터링 — POSTS_CONTENT에서 제거
-        getDeletedPosts().forEach(postId => {
-            delete POSTS_CONTENT[postId];
-            document.querySelectorAll(`.feed-post[data-post-id="${postId}"]`).forEach(el => el.remove());
-        });
+        // 삭제된 포스트 필터링
+        getDeletedPosts().forEach(postId => { delete POSTS_CONTENT[postId]; });
 
-        // 모든 포스트를 피드에 동적 주입 (최신 업로드가 위에 오도록 reverse)
+        // Stories 행 업데이트 (실제 DB 유저 표시)
+        const storiesRow = document.querySelector('.stories-row');
+        if (storiesRow) {
+            storiesRow.innerHTML = '';
+            Object.entries(USERS_DATA).slice(0, 8).forEach(([id, u]) => {
+                const item = document.createElement('div');
+                item.className = 'story-item';
+                item.dataset.userId = id;
+                item.innerHTML = `
+                    <div class="story-avatar" style="background:${u.color || '#f5d000'};">${u.initial || (u.name || id).charAt(0).toUpperCase()}</div>
+                    <span>${u.name || id}</span>`;
+                storiesRow.appendChild(item);
+            });
+        }
+
+        // 피드에 포스트 주입 (.feed-banner 아래에)
         const feedBody = document.querySelector('.feed-body');
-        const allPostIds = Object.keys(POSTS_CONTENT).reverse();
-        if (feedBody && allPostIds.length > 0) {
-            const storyContainer = feedBody.querySelector('.story-container');
-            if (storyContainer) {
-                const htmls = allPostIds.map(buildPostCardHTML).filter(Boolean);
-                storyContainer.insertAdjacentHTML('afterend', htmls.join(''));
-            }
+        const banner = feedBody?.querySelector('.feed-banner');
+        if (banner) {
+            const htmls = Object.keys(POSTS_CONTENT).map(buildPostCardHTML).filter(Boolean);
+            if (htmls.length > 0) banner.insertAdjacentHTML('afterend', htmls.join(''));
         }
 
         initFeed();
@@ -217,20 +231,21 @@ const initApp = () => {
     }
 
     async function toggleLike(postId, currentUser) {
+        const uid = (typeof currentUser === 'string') ? currentUser : getUser();
         if (!POSTS_CONTENT[postId]) return false;
         // Optimistic UI 반영
-        const currentlyLiked = !!POSTS_CONTENT[postId].likes[currentUser];
-        if (currentlyLiked) delete POSTS_CONTENT[postId].likes[currentUser];
-        else POSTS_CONTENT[postId].likes[currentUser] = true;
+        const currentlyLiked = !!POSTS_CONTENT[postId].likes[uid];
+        if (currentlyLiked) delete POSTS_CONTENT[postId].likes[uid];
+        else POSTS_CONTENT[postId].likes[uid] = true;
 
         try {
             await fetch(`/api/posts/${postId}/like`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ userId: currentUser })
+                body: JSON.stringify({ uid })
             });
         } catch(e) { console.error('좋아요 실패', e); }
-        
+
         return !currentlyLiked;
     }
 
@@ -340,34 +355,29 @@ const initApp = () => {
         if (!feedBody) return;
 
         const hasPosts = Object.keys(POSTS_CONTENT).length > 0;
+        const banner = feedBody.querySelector('.feed-banner');
 
-        // 포스트 카드가 DOM에 없지만 POSTS_CONTENT에 있으면 재주입 (화면 전환 후 돌아올 때 대비)
-        if (hasPosts && feedBody.querySelectorAll('.feed-post').length === 0) {
-            const storyContainer = feedBody.querySelector('.story-container');
-            if (storyContainer) {
-                const htmls = Object.keys(POSTS_CONTENT).reverse().map(buildPostCardHTML).filter(Boolean);
-                storyContainer.insertAdjacentHTML('afterend', htmls.join(''));
-            }
+        // 포스트 카드가 DOM에 없지만 POSTS_CONTENT에 있으면 재주입
+        if (hasPosts && feedBody.querySelectorAll('.feed-post').length === 0 && banner) {
+            const htmls = Object.keys(POSTS_CONTENT).map(buildPostCardHTML).filter(Boolean);
+            if (htmls.length > 0) banner.insertAdjacentHTML('afterend', htmls.join(''));
         }
 
         // 빈 피드 안내 UI
         const emptyState = feedBody.querySelector('.feed-empty-state');
         if (!hasPosts) {
-            if (!emptyState) {
-                const storyContainer = feedBody.querySelector('.story-container');
-                if (storyContainer) {
-                    const el = document.createElement('div');
-                    el.className = 'feed-empty-state';
-                    el.style.cssText = 'display:flex;flex-direction:column;align-items:center;justify-content:center;padding:60px 20px;text-align:center;';
-                    el.innerHTML = `
-                        <div style="font-size:48px;margin-bottom:16px;">📭</div>
-                        <div style="font-weight:800;font-size:18px;margin-bottom:8px;">No comics yet!</div>
-                        <div style="font-size:14px;color:#aaa;margin-bottom:24px;">Be the first to share your comic with the community.</div>
-                        <button id="feed-empty-upload-btn" style="background:#f5d000;border:2px solid #1a1a1a;border-radius:12px;padding:12px 28px;font-size:15px;font-weight:900;cursor:pointer;font-family:inherit;">✏️ Upload Now</button>
-                    `;
-                    storyContainer.insertAdjacentElement('afterend', el);
-                    document.getElementById('feed-empty-upload-btn').addEventListener('click', () => showScreen('upload'));
-                }
+            if (!emptyState && banner) {
+                const el = document.createElement('div');
+                el.className = 'feed-empty-state';
+                el.style.cssText = 'display:flex;flex-direction:column;align-items:center;justify-content:center;padding:60px 20px;text-align:center;';
+                el.innerHTML = `
+                    <div style="font-size:48px;margin-bottom:16px;">📭</div>
+                    <div style="font-weight:800;font-size:18px;margin-bottom:8px;">No comics yet!</div>
+                    <div style="font-size:14px;color:#aaa;margin-bottom:24px;">Be the first to share your comic with the community.</div>
+                    <button id="feed-empty-upload-btn" style="background:#f5d000;border:2px solid #1a1a1a;border-radius:12px;padding:12px 28px;font-size:15px;font-weight:900;cursor:pointer;font-family:inherit;">✏️ Upload Now</button>
+                `;
+                banner.insertAdjacentElement('afterend', el);
+                document.getElementById('feed-empty-upload-btn').addEventListener('click', () => showScreen('upload'));
             }
         } else {
             emptyState?.remove();
@@ -421,7 +431,7 @@ const initApp = () => {
         });
 
         if (name === 'profile') renderProfile();
-        if (name === 'feed') initFeed();
+        if (name === 'feed') loadBackendData();
         if (name === 'shop') refreshShopOwnedState();
     }
 
@@ -1467,6 +1477,56 @@ const initApp = () => {
         document.getElementById('preview-gap-val').textContent = val + 'px';
     }
 
+    // ── 선택된 풍선 추적 (Delete 키 삭제용) ────────────
+    let selectedCanvasBubble = null;
+
+    function selectBubble(bubble) {
+        // 이전 선택 해제
+        if (selectedCanvasBubble && selectedCanvasBubble !== bubble) {
+            selectedCanvasBubble.style.outline = 'none';
+            selectedCanvasBubble.style.outlineOffset = '0px';
+        }
+        selectedCanvasBubble = bubble;
+        if (bubble) {
+            bubble.style.outline = '3px solid #f5d000';
+            bubble.style.outlineOffset = '3px';
+        }
+    }
+
+    function deselectBubble() {
+        if (selectedCanvasBubble) {
+            selectedCanvasBubble.style.outline = 'none';
+            selectedCanvasBubble.style.outlineOffset = '0px';
+            selectedCanvasBubble = null;
+        }
+    }
+
+    // Delete / Backspace 키로 선택된 풍선 삭제
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Delete' || e.key === 'Backspace') {
+            // 텍스트 편집 중이면 무시
+            const active = document.activeElement;
+            if (active && (active.contentEditable === 'true' || active.tagName === 'INPUT' || active.tagName === 'TEXTAREA')) return;
+            if (selectedCanvasBubble) {
+                e.preventDefault();
+                selectedCanvasBubble.remove();
+                selectedCanvasBubble = null;
+                // 풍선이 하나도 없으면 레이어 비활성화
+                const layer = document.getElementById('bubble-layer');
+                if (layer && layer.children.length === 0) {
+                    layer.style.pointerEvents = 'none';
+                }
+            }
+        }
+    });
+
+    // 캔버스 빈 공간 클릭 시 선택 해제
+    document.getElementById('preview-canvas').addEventListener('click', (e) => {
+        if (!e.target.closest('.canvas-bubble')) {
+            deselectBubble();
+        }
+    });
+
     function addBubbleToCanvas(type, x, y) {
         const layer = document.getElementById('bubble-layer');
         if (!layer) return;
@@ -1474,6 +1534,7 @@ const initApp = () => {
 
         const bubble = document.createElement('div');
         bubble.className = 'canvas-bubble';
+        bubble.dataset.bubbleType = type;
 
         const defaultX = (x !== undefined) ? x : 100;
         const defaultY = (y !== undefined) ? y : 100;
@@ -1493,9 +1554,13 @@ const initApp = () => {
             cursor:move; z-index:20;
             font-family:Nunito,sans-serif; font-weight:700; font-size:14px;
             user-select:none; box-shadow:3px 3px 0px rgba(0,0,0,0.3);
-            box-sizing:border-box; overflow:hidden;
+            box-sizing:border-box; overflow:visible;
             display:flex; align-items:center; justify-content:center;
         `;
+
+        // 풍선 클릭 시 선택
+        bubble.addEventListener('mousedown', () => selectBubble(bubble));
+        bubble.addEventListener('touchstart', () => selectBubble(bubble), { passive: true });
 
         const text = document.createElement('div');
         text.contentEditable = true;
@@ -1529,7 +1594,16 @@ const initApp = () => {
         del.style.cssText = 'position:absolute;top:-10px;right:-10px;background:#e24b4a;color:#fff;border:none;border-radius:50%;width:22px;height:22px;font-size:11px;cursor:pointer;font-weight:800;z-index:30;line-height:1;display:flex;align-items:center;justify-content:center;';
         del.onmousedown = e => e.stopPropagation();
         del.ontouchstart = e => e.stopPropagation();
-        del.onclick = e => { e.stopPropagation(); bubble.remove(); };
+        del.onclick = e => {
+            e.stopPropagation();
+            if (selectedCanvasBubble === bubble) selectedCanvasBubble = null;
+            bubble.remove();
+            // 풍선이 하나도 없으면 레이어 비활성화
+            const layer = document.getElementById('bubble-layer');
+            if (layer && layer.children.length === 0) {
+                layer.style.pointerEvents = 'none';
+            }
+        };
 
         const resizeHandle = document.createElement('div');
         resizeHandle.style.cssText = 'position:absolute;bottom:0;right:0;width:20px;height:20px;cursor:se-resize;z-index:30;background:transparent;display:flex;align-items:flex-end;justify-content:flex-end;padding:3px;';
@@ -1626,6 +1700,7 @@ const initApp = () => {
     function clearCanvasBubbles() {
         const layer = document.getElementById('bubble-layer');
         if (layer) { layer.innerHTML = ''; layer.style.pointerEvents = 'none'; }
+        selectedCanvasBubble = null;
         const slider = document.getElementById('preview-gap-slider');
         if (slider) { slider.value = 8; updateCanvasGap(8); }
     }
@@ -1724,20 +1799,27 @@ const initApp = () => {
         POSTS_CONTENT[newPostId] = newPost;
         USERS_DATA[ukey].postIds.unshift(newPostId);
 
-        // 2) localStorage 이중 저장 (getLocalPosts + DB)
-        saveLocalPost(newPost);
-        const db = getDB();
-        db.posts.unshift(newPostId);
-        saveDB(db);
+        // 2) 백엔드 저장 (실패 시 localStorage fallback)
+        try {
+            const res = await fetch('/api/posts', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(newPost)
+            });
+            const data = await res.json();
+            if (!data.success) throw new Error('Backend save failed');
+        } catch(e) {
+            saveLocalPost(newPost);
+        }
 
-        // 3) 피드 DOM 즉시 주입
+        // 3) 피드 DOM 즉시 주입 (.feed-banner 기준)
         const feedBody = document.querySelector('.feed-body');
-        const storyContainer = feedBody ? feedBody.querySelector('.story-container') : null;
-        if (storyContainer) {
+        const banner = feedBody?.querySelector('.feed-banner');
+        if (banner) {
             feedBody.querySelector('.feed-empty-state')?.remove();
             const html = buildPostCardHTML(newPostId);
             if (html) {
-                storyContainer.insertAdjacentHTML('afterend', html);
+                banner.insertAdjacentHTML('afterend', html);
                 renderFeedPost(newPostId);
             }
         }
