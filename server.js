@@ -1,12 +1,8 @@
 const express = require('express');
 const cors = require('cors');
-const multer = require('multer');
 const fs = require('fs');
 const path = require('path');
 const { Pool } = require('pg');
-// googleapis는 ~30MB 메모리를 사용하므로 필요할 때만 로드
-let google = null;
-const { Readable } = require('stream');
 
 const app = express();
 app.use(cors());
@@ -21,49 +17,17 @@ let pool = null;
 if (dbUrl) {
     pool = new Pool({
         connectionString: dbUrl,
-        ssl: { rejectUnauthorized: false }, // 클라우드 DB 연결용
-        max: 3,              // 최대 커넥션 수 제한 (메모리 절약)
-        idleTimeoutMillis: 30000  // 유휴 커넥션 30초 후 해제
+        ssl: { rejectUnauthorized: false },
+        max: 3,
+        idleTimeoutMillis: 30000
     });
     console.log("PostgreSQL database configured.");
 } else {
-    // 로컬 환경을 위한 안내
     console.log("⚠️ DATABASE_URL 환경변수가 없습니다. (PostgreSQL 비활성화)");
     console.log("로컬 테스트를 하시려면 Railway의 DATABASE_URL을 로컬 환경변수에 추가하시기 바랍니다.");
 }
 
-// ── Google Drive 설정 (조건부 로딩) ─────────────────────────
-const DRIVE_FOLDER_ID = process.env.GOOGLE_DRIVE_FOLDER_ID || '1vVyzStMs1j6tCWSbw5lv3bw8Wi_XHzK5';
-let driveClient = null;
-
-if (process.env.GOOGLE_SERVICE_ACCOUNT_KEY) {
-    try {
-        const keyStr = process.env.GOOGLE_SERVICE_ACCOUNT_KEY.trim();
-        // JSON 유효성 사전 검증
-        if (!keyStr.startsWith('{')) {
-            throw new Error('환경변수가 JSON 형식이 아닙니다. "{"로 시작해야 합니다.');
-        }
-        const credentials = JSON.parse(keyStr);
-        if (!credentials.client_email || !credentials.private_key) {
-            throw new Error('서비스 계정 키에 client_email 또는 private_key가 없습니다.');
-        }
-        // googleapis를 여기서만 로드 (조건부 로딩으로 메모리 절약)
-        google = require('googleapis').google;
-        const auth = new google.auth.GoogleAuth({
-            credentials,
-            scopes: ['https://www.googleapis.com/auth/drive.file']
-        });
-        driveClient = google.drive({ version: 'v3', auth });
-        console.log('✅ Google Drive API configured.');
-    } catch(e) {
-        console.error('⚠️ Google Drive 설정 실패 (무시하고 계속 실행):', e.message);
-        driveClient = null;  // 확실히 null 유지
-    }
-} else {
-    console.log('⚠️ GOOGLE_SERVICE_ACCOUNT_KEY 환경변수가 없습니다. (Google Drive 비활성화)');
-}
-
-// ── 데이터베이스 초기화 (테이블 생성 등) ──────────────────────
+// ── 데이터베이스 초기화 ────────────────────────────────────────
 async function initDB() {
     if (!pool) return;
     try {
@@ -80,16 +44,9 @@ async function initDB() {
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
         `);
-        await pool.query(`
-            CREATE TABLE IF NOT EXISTS images (
-                id VARCHAR(255) PRIMARY KEY,
-                data BYTEA NOT NULL,
-                mimetype VARCHAR(100) NOT NULL
-            );
-        `);
         console.log("PostgreSQL tables successfully initialized!");
 
-        // 어드민 사용자 기본 생성 로직
+        // 어드민 사용자 기본 생성
         const check = await pool.query("SELECT * FROM users WHERE id = 'kevin'");
         if (check.rows.length === 0) {
             const defaultUser = {
@@ -101,14 +58,18 @@ async function initDB() {
             console.log("Default admin 'kevin' seeded into Postgres.");
         }
 
-        // 기본 포스트 시드 로직
+        // 기본 포스트 시드
         const checkPosts = await pool.query("SELECT * FROM posts WHERE id = 'post-1'");
         if (checkPosts.rows.length === 0) {
             const post1 = {
-                id: 'post-1', title: 'Neon Drift, Part 14', authorId: 'glo_rich', desc: 'Finally finished the shading in the rain scene! This chapter took me forever 😭✨', baseLikes: 284, likes: {}, comments: []
+                id: 'post-1', title: 'Neon Drift, Part 14', authorId: 'glo_rich',
+                desc: 'Finally finished the shading in the rain scene! This chapter took me forever 😭✨',
+                baseLikes: 284, likes: {}, comments: []
             };
             const post2 = {
-                id: 'post-2', title: 'Dragonstar', authorId: 'jen_borden', desc: 'Character concept art for the upcoming reboot.', baseLikes: 820, likes: {}, comments: []
+                id: 'post-2', title: 'Dragonstar', authorId: 'jen_borden',
+                desc: 'Character concept art for the upcoming reboot.',
+                baseLikes: 820, likes: {}, comments: []
             };
             await pool.query("INSERT INTO posts (id, data) VALUES ($1, $2)", ['post-1', post1]);
             await pool.query("INSERT INTO posts (id, data) VALUES ($1, $2)", ['post-2', post2]);
@@ -119,17 +80,11 @@ async function initDB() {
 }
 initDB();
 
-// ── 로컬 파일 스토리지 (Fallback 구현체) ─────────────────────
-// Postgres 연결이 불가능할 경우 기존처럼 파일 캐싱을 위해 남겨둠.
+// ── 로컬 파일 스토리지 (Postgres 없을 때 fallback) ──────────────
 const DATA_DIR = path.join(__dirname, 'data');
 if (!fs.existsSync(DATA_DIR)) {
     fs.mkdirSync(DATA_DIR, { recursive: true });
 }
-const UPLOADS_DIR = path.join(DATA_DIR, 'uploads');
-if (!fs.existsSync(UPLOADS_DIR)) {
-    fs.mkdirSync(UPLOADS_DIR, { recursive: true });
-}
-app.use('/uploads', express.static(UPLOADS_DIR));
 
 const readLocalJSON = (file, def) => {
     if (!fs.existsSync(file)) { fs.writeFileSync(file, JSON.stringify(def)); return def; }
@@ -140,88 +95,15 @@ const saveLocalJSON = (file, data) => fs.writeFileSync(file, JSON.stringify(data
 let localUsers = readLocalJSON(path.join(DATA_DIR, 'users.json'), {});
 let localPosts = readLocalJSON(path.join(DATA_DIR, 'posts.json'), {});
 
-// ── 이미지 업로드 설정 ─────────────────────────────────────
-// 메모리 스토리지: DB 저장을 위해 파일 데이터를 메모리에 버퍼로 보관
-const storage = multer.memoryStorage();
-const upload = multer({ storage: storage });
+// ── API 엔드포인트 ────────────────────────────────────────────
 
-// 이미지 제공 API (PostgreSQL 전용)
-app.get('/api/images/:id', async (req, res) => {
-    if (!pool) return res.status(404).send("DB not configured");
-    try {
-        const result = await pool.query('SELECT data, mimetype FROM images WHERE id = $1', [req.params.id]);
-        if (result.rows.length === 0) return res.status(404).send('Not found');
-        
-        res.setHeader('Content-Type', result.rows[0].mimetype);
-        res.send(result.rows[0].data);
-    } catch(e) {
-        console.error(e);
-        res.status(500).send("Error reading image from Postgres");
-    }
-});
-
-// ── 이미지 업로드 API (Google Drive 우선, DB fallback) ──────
-app.post('/api/upload-image', upload.single('image'), async (req, res) => {
-    if (!req.file) return res.status(400).json({ error: 'No file provided' });
-
-    // Google Drive가 설정되어 있으면 Drive에 업로드
-    if (driveClient) {
-        try {
-            const fileMetadata = {
-                name: `comic_${Date.now()}_${req.file.originalname || 'panel.png'}`,
-                parents: [DRIVE_FOLDER_ID]
-            };
-            const media = {
-                mimeType: req.file.mimetype,
-                body: Readable.from(req.file.buffer)
-            };
-
-            const file = await driveClient.files.create({
-                requestBody: fileMetadata,
-                media: media,
-                fields: 'id'
-            });
-
-            // 공개 읽기 권한 설정 (누구나 이미지 열람 가능)
-            await driveClient.permissions.create({
-                fileId: file.data.id,
-                requestBody: { role: 'reader', type: 'anyone' }
-            });
-
-            const imageUrl = `https://lh3.googleusercontent.com/d/${file.data.id}`;
-            console.log(`✅ Image uploaded to Drive: ${file.data.id}`);
-            return res.json({ success: true, url: imageUrl, fileId: file.data.id });
-        } catch(e) {
-            console.error('Google Drive upload error:', e.message);
-            // Drive 실패 시 아래 DB fallback으로 이동
-        }
-    }
-
-    // Fallback: PostgreSQL images 테이블에 저장
-    if (pool) {
-        try {
-            const imgId = 'img-' + Date.now() + '-' + Math.random().toString(36).substr(2, 6);
-            await pool.query(
-                'INSERT INTO images (id, data, mimetype) VALUES ($1, $2, $3)',
-                [imgId, req.file.buffer, req.file.mimetype]
-            );
-            console.log(`✅ Image saved to DB: ${imgId}`);
-            return res.json({ success: true, url: `/api/images/${imgId}` });
-        } catch(e) {
-            console.error('DB image save error:', e.message);
-        }
-    }
-
-    res.status(500).json({ error: 'No storage backend available' });
-});
-
-
-// ── API 엔드포인트 ────────────────────────────────────────
+// Railway health check — 이 엔드포인트가 있어야 Railway가 서버 상태를 올바르게 감지함
+app.get('/health', (req, res) => res.json({ status: 'ok', db: !!pool }));
 
 app.post('/api/auth/login', async (req, res) => {
     const { id, password } = req.body;
     const key = id.toLowerCase();
-    
+
     if (pool) {
         const result = await pool.query('SELECT data FROM users WHERE id = $1', [key]);
         if (result.rows.length > 0) {
@@ -239,7 +121,7 @@ app.post('/api/auth/login', async (req, res) => {
 app.post('/api/auth/signup', async (req, res) => {
     const { id, pwd, name } = req.body;
     const key = id.toLowerCase();
-    
+
     const newUser = {
         id, pwd, name,
         handle: '@' + name,
@@ -255,7 +137,6 @@ app.post('/api/auth/signup', async (req, res) => {
     if (pool) {
         const check = await pool.query('SELECT id FROM users WHERE id = $1', [key]);
         if (check.rows.length > 0) return res.json({ success: false, message: 'ID already exists' });
-        
         await pool.query('INSERT INTO users (id, data) VALUES ($1, $2)', [key, newUser]);
         res.json({ success: true, user: newUser });
     } else {
@@ -375,7 +256,7 @@ app.post('/api/posts', async (req, res) => {
 app.post('/api/posts/:id/like', async (req, res) => {
     const postId = req.params.id;
     const userId = req.body.uid || req.body.userId;
-    
+
     if (pool) {
         const postRes = await pool.query('SELECT data FROM posts WHERE id = $1', [postId]);
         if (postRes.rows.length === 0) return res.status(404).json({ error: 'Post not found' });
@@ -404,7 +285,6 @@ app.post('/api/posts/:id/comments', async (req, res) => {
         const postRes = await pool.query('SELECT data FROM posts WHERE id = $1', [postId]);
         if (postRes.rows.length === 0) return res.status(404).json({ error: 'Post not found' });
         post = postRes.rows[0].data;
-
         const userRes = await pool.query('SELECT data FROM users WHERE id = $1', [userKey]);
         user = userRes.rows.length > 0 ? userRes.rows[0].data : null;
     } else {
@@ -440,7 +320,7 @@ app.delete('/api/posts/:id', async (req, res) => {
     if (pool) {
         const postRes = await pool.query('SELECT data FROM posts WHERE id = $1', [postId]);
         if (postRes.rows.length === 0) return res.status(404).json({ error: 'Post not found' });
-        
+
         const post = postRes.rows[0].data;
         if (post.authorId.toLowerCase() !== userId) return res.status(403).json({ error: 'Unauthorized to delete this post' });
 
@@ -488,7 +368,16 @@ app.post('/api/users/:id/update', async (req, res) => {
 // 프론트엔드 정적 파일 서빙
 app.use(express.static(__dirname));
 
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
     console.log(`Server running on http://localhost:${PORT}`);
     console.log(`Database connected? ${!!pool}`);
+});
+
+// Railway SIGTERM 수신 시 graceful shutdown
+process.on('SIGTERM', () => {
+    console.log('SIGTERM received, shutting down gracefully...');
+    server.close(async () => {
+        if (pool) await pool.end();
+        process.exit(0);
+    });
 });
