@@ -1770,7 +1770,7 @@ const initApp = () => {
         if (uploadedImages.length > 5) showToast('Max 5 panels recommended for performance');
 
         const publishBtn = document.getElementById('preview-publish-btn');
-        if (publishBtn) { publishBtn.textContent = 'Publishing...'; publishBtn.disabled = true; }
+        if (publishBtn) { publishBtn.textContent = '📤 Uploading images...'; publishBtn.disabled = true; }
 
         const ukey = getUser();
 
@@ -1783,13 +1783,41 @@ const initApp = () => {
             };
         }
 
+        // ── 이미지를 Google Drive에 업로드 ──────────────────
+        const driveImageUrls = [];
+        for (let i = 0; i < uploadedImages.length; i++) {
+            if (publishBtn) publishBtn.textContent = `📤 Uploading ${i + 1}/${uploadedImages.length}...`;
+            try {
+                const formData = new FormData();
+                if (uploadedFiles[i]) {
+                    formData.append('image', uploadedFiles[i]);
+                } else {
+                    // base64 → Blob 변환 (캔버스 편집 등으로 File 객체가 없는 경우)
+                    const resp = await fetch(uploadedImages[i]);
+                    const blob = await resp.blob();
+                    formData.append('image', blob, `panel_${i + 1}.png`);
+                }
+                const uploadRes = await fetch('/api/upload-image', { method: 'POST', body: formData });
+                const uploadData = await uploadRes.json();
+                if (uploadData.success) {
+                    driveImageUrls.push(uploadData.url);
+                } else {
+                    throw new Error(uploadData.error || 'Upload failed');
+                }
+            } catch(e) {
+                console.warn(`Panel ${i + 1} 이미지 업로드 실패, base64 fallback:`, e);
+                driveImageUrls.push(uploadedImages[i]); // fallback to base64
+            }
+        }
+        if (publishBtn) publishBtn.textContent = '📝 Publishing...';
+
         const newPostId = `local-${Date.now()}`;
         const newPost = {
             id: newPostId,
             authorId: ukey,
             title: titleInput,
             desc: descInput || '',
-            imageUrls: [...uploadedImages],   // base64 배열
+            imageUrls: driveImageUrls,   // Google Drive URLs (fallback: base64)
             imageClass: 'custom-upload',
             time: new Date().toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }),
             baseLikes: 0, likes: {}, comments: []

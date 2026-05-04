@@ -4,6 +4,8 @@ const multer = require('multer');
 const fs = require('fs');
 const path = require('path');
 const { Pool } = require('pg');
+const { google } = require('googleapis');
+const { Readable } = require('stream');
 
 const app = express();
 app.use(cors());
@@ -25,6 +27,26 @@ if (dbUrl) {
     // 로컬 환경을 위한 안내
     console.log("⚠️ DATABASE_URL 환경변수가 없습니다. (PostgreSQL 비활성화)");
     console.log("로컬 테스트를 하시려면 Railway의 DATABASE_URL을 로컬 환경변수에 추가하시기 바랍니다.");
+}
+
+// ── Google Drive 설정 ──────────────────────────────────────
+const DRIVE_FOLDER_ID = process.env.GOOGLE_DRIVE_FOLDER_ID || '1vVyzStMs1j6tCWSbw5lv3bw8Wi_XHzK5';
+let driveClient = null;
+
+if (process.env.GOOGLE_SERVICE_ACCOUNT_KEY) {
+    try {
+        const credentials = JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_KEY);
+        const auth = new google.auth.GoogleAuth({
+            credentials,
+            scopes: ['https://www.googleapis.com/auth/drive.file']
+        });
+        driveClient = google.drive({ version: 'v3', auth });
+        console.log('✅ Google Drive API configured.');
+    } catch(e) {
+        console.error('❌ Google Drive setup failed:', e.message);
+    }
+} else {
+    console.log('⚠️ GOOGLE_SERVICE_ACCOUNT_KEY 환경변수가 없습니다. (Google Drive 비활성화)');
 }
 
 // ── 데이터베이스 초기화 (테이블 생성 등) ──────────────────────
@@ -122,6 +144,61 @@ app.get('/api/images/:id', async (req, res) => {
         console.error(e);
         res.status(500).send("Error reading image from Postgres");
     }
+});
+
+// ── 이미지 업로드 API (Google Drive 우선, DB fallback) ──────
+app.post('/api/upload-image', upload.single('image'), async (req, res) => {
+    if (!req.file) return res.status(400).json({ error: 'No file provided' });
+
+    // Google Drive가 설정되어 있으면 Drive에 업로드
+    if (driveClient) {
+        try {
+            const fileMetadata = {
+                name: `comic_${Date.now()}_${req.file.originalname || 'panel.png'}`,
+                parents: [DRIVE_FOLDER_ID]
+            };
+            const media = {
+                mimeType: req.file.mimetype,
+                body: Readable.from(req.file.buffer)
+            };
+
+            const file = await driveClient.files.create({
+                requestBody: fileMetadata,
+                media: media,
+                fields: 'id'
+            });
+
+            // 공개 읽기 권한 설정 (누구나 이미지 열람 가능)
+            await driveClient.permissions.create({
+                fileId: file.data.id,
+                requestBody: { role: 'reader', type: 'anyone' }
+            });
+
+            const imageUrl = `https://lh3.googleusercontent.com/d/${file.data.id}`;
+            console.log(`✅ Image uploaded to Drive: ${file.data.id}`);
+            return res.json({ success: true, url: imageUrl, fileId: file.data.id });
+        } catch(e) {
+            console.error('Google Drive upload error:', e.message);
+            // Drive 실패 시 아래 DB fallback으로 이동
+        }
+    }
+
+    // Fallback: PostgreSQL images 테이블에 저장
+    if (pool) {
+        try {
+            const imgId = 'img-' + Date.now() + '-' + Math.random().toString(36).substr(2, 6);
+            await pool.query(
+                'INSERT INTO images (id, data, mimetype) VALUES ($1, $2, $3)',
+                [imgId, req.file.buffer, req.file.mimetype]
+            );
+            console.log(`✅ Image saved to DB: ${imgId}`);
+            return res.json({ success: true, url: `/api/images/${imgId}` });
+        } catch(e) {
+            console.error('DB image save error:', e.message);
+        }
+    }
+
+    res.status(500).json({ error: 'No storage backend available' });
 });
 
 
