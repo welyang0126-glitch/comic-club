@@ -4,7 +4,8 @@ const multer = require('multer');
 const fs = require('fs');
 const path = require('path');
 const { Pool } = require('pg');
-const { google } = require('googleapis');
+// googleapis는 ~30MB 메모리를 사용하므로 필요할 때만 로드
+let google = null;
 const { Readable } = require('stream');
 
 const app = express();
@@ -20,7 +21,9 @@ let pool = null;
 if (dbUrl) {
     pool = new Pool({
         connectionString: dbUrl,
-        ssl: { rejectUnauthorized: false } // 클라우드 DB 연결용
+        ssl: { rejectUnauthorized: false }, // 클라우드 DB 연결용
+        max: 3,              // 최대 커넥션 수 제한 (메모리 절약)
+        idleTimeoutMillis: 30000  // 유휴 커넥션 30초 후 해제
     });
     console.log("PostgreSQL database configured.");
 } else {
@@ -29,13 +32,23 @@ if (dbUrl) {
     console.log("로컬 테스트를 하시려면 Railway의 DATABASE_URL을 로컬 환경변수에 추가하시기 바랍니다.");
 }
 
-// ── Google Drive 설정 ──────────────────────────────────────
+// ── Google Drive 설정 (조건부 로딩) ─────────────────────────
 const DRIVE_FOLDER_ID = process.env.GOOGLE_DRIVE_FOLDER_ID || '1vVyzStMs1j6tCWSbw5lv3bw8Wi_XHzK5';
 let driveClient = null;
 
 if (process.env.GOOGLE_SERVICE_ACCOUNT_KEY) {
     try {
-        const credentials = JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_KEY);
+        const keyStr = process.env.GOOGLE_SERVICE_ACCOUNT_KEY.trim();
+        // JSON 유효성 사전 검증
+        if (!keyStr.startsWith('{')) {
+            throw new Error('환경변수가 JSON 형식이 아닙니다. "{"로 시작해야 합니다.');
+        }
+        const credentials = JSON.parse(keyStr);
+        if (!credentials.client_email || !credentials.private_key) {
+            throw new Error('서비스 계정 키에 client_email 또는 private_key가 없습니다.');
+        }
+        // googleapis를 여기서만 로드 (조건부 로딩으로 메모리 절약)
+        google = require('googleapis').google;
         const auth = new google.auth.GoogleAuth({
             credentials,
             scopes: ['https://www.googleapis.com/auth/drive.file']
@@ -43,7 +56,8 @@ if (process.env.GOOGLE_SERVICE_ACCOUNT_KEY) {
         driveClient = google.drive({ version: 'v3', auth });
         console.log('✅ Google Drive API configured.');
     } catch(e) {
-        console.error('❌ Google Drive setup failed:', e.message);
+        console.error('⚠️ Google Drive 설정 실패 (무시하고 계속 실행):', e.message);
+        driveClient = null;  // 확실히 null 유지
     }
 } else {
     console.log('⚠️ GOOGLE_SERVICE_ACCOUNT_KEY 환경변수가 없습니다. (Google Drive 비활성화)');
