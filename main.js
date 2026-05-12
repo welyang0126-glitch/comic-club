@@ -1063,6 +1063,15 @@ const initApp = () => {
             updateHeartDisplays();
             renderProfile();
 
+            // 서버에 하트 잔액 및 구매 목록 저장
+            if (loggedInUser !== 'Guest') {
+                fetch(`/api/users/${loggedInUser.toLowerCase()}/update`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ hearts, items: [...purchasedItems] })
+                }).catch(e => console.error('아이템 저장 실패', e));
+            }
+
             // D3: 언락 애니메이션
             card.classList.add('unlocking');
             buyBtn.textContent = '✅ Owned';
@@ -1209,6 +1218,14 @@ const initApp = () => {
                 loginForm.reset();
                 loggedInUser = data.user.id; // Fix: Use ID instead of name for data mapping
 
+                // 서버에서 받은 hearts / items 복원
+                if (typeof data.user.hearts === 'number') hearts = data.user.hearts;
+                if (Array.isArray(data.user.items)) {
+                    purchasedItems.clear();
+                    data.user.items.forEach(item => purchasedItems.add(item));
+                }
+                updateHeartDisplays();
+
                 // 로그인 유저 정보로 UI 업데이트
                 const profileNameEl = document.querySelector('.profile-name');
                 if (profileNameEl) profileNameEl.textContent = data.user.name;
@@ -1217,7 +1234,7 @@ const initApp = () => {
                 const color = data.user.color || '#ffcc00';
                 const avatarEmojiEl = document.getElementById('avatar-emoji');
                 if (avatarEmojiEl) avatarEmojiEl.textContent = '';
-                
+
                 if (data.user.avatar) {
                     appliedStyle = { ...appliedStyle, ...data.user.avatar };
                     pendingStyle = { ...appliedStyle };

@@ -261,15 +261,38 @@ app.post('/api/posts/:id/like', async (req, res) => {
         const postRes = await pool.query('SELECT data FROM posts WHERE id = $1', [postId]);
         if (postRes.rows.length === 0) return res.status(404).json({ error: 'Post not found' });
         const post = postRes.rows[0].data;
-        if (post.likes[userId]) delete post.likes[userId];
+        const wasLiked = !!post.likes[userId];
+        if (wasLiked) delete post.likes[userId];
         else post.likes[userId] = true;
         await pool.query('UPDATE posts SET data = $1 WHERE id = $2', [post, postId]);
+
+        // 자기 자신 게시글은 하트 집계 제외
+        const authorId = (post.authorId || '').toLowerCase();
+        if (authorId && authorId !== userId.toLowerCase()) {
+            const authorRes = await pool.query('SELECT data FROM users WHERE id = $1', [authorId]);
+            if (authorRes.rows.length > 0) {
+                const author = authorRes.rows[0].data;
+                author.hearts = (author.hearts || 0) + (wasLiked ? -1 : 1);
+                if (author.hearts < 0) author.hearts = 0;
+                await pool.query('UPDATE users SET data = $1 WHERE id = $2', [author, authorId]);
+            }
+        }
+
         res.json({ success: true, post });
     } else {
         const post = localPosts[postId];
         if (!post) return res.status(404).json({ error: 'Post not found' });
-        if (post.likes[userId]) delete post.likes[userId];
+        const wasLiked = !!post.likes[userId];
+        if (wasLiked) delete post.likes[userId];
         else post.likes[userId] = true;
+
+        const authorId = (post.authorId || '').toLowerCase();
+        if (authorId && authorId !== userId.toLowerCase() && localUsers[authorId]) {
+            localUsers[authorId].hearts = (localUsers[authorId].hearts || 0) + (wasLiked ? -1 : 1);
+            if (localUsers[authorId].hearts < 0) localUsers[authorId].hearts = 0;
+            saveLocalJSON(path.join(DATA_DIR, 'users.json'), localUsers);
+        }
+
         saveLocalJSON(path.join(DATA_DIR, 'posts.json'), localPosts);
         res.json({ success: true, post });
     }
