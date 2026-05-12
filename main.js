@@ -453,7 +453,7 @@ const initApp = () => {
                     <p class="post-time">${content.time}</p>
                 </div>
             </div>
-            <div class="post-images-container" style="display: flex; flex-direction: column; cursor: pointer;" data-webtoon-trigger="${postId}">
+            <div class="post-images-container" style="position:relative; display: flex; flex-direction: column; cursor: pointer;" data-webtoon-trigger="${postId}">
                 ${(content.imageUrls && content.imageUrls.length > 0)
                   ? content.imageUrls.map(url => `
                       <img src="${url}" class="webtoon-feed-img" style="width: 100%; display: block; filter: saturate(1.2) contrast(1.1); box-shadow: 0 4px 15px rgba(0,0,0,0.5);" />
@@ -465,6 +465,22 @@ const initApp = () => {
                         </div>
                      </div>`
                 }
+                ${(content.bubbles && content.bubbles.length > 0) ? `
+                <div style="position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:10;">
+                    ${content.bubbles.map(b => `
+                    <div style="position:absolute;
+                        left:${b.leftPct}%;top:${b.topPct}%;
+                        width:${b.widthPct}%;height:${b.heightPct}%;
+                        background:${b.type==='thought'?'#f0f0ff':'#fff'};
+                        border:2.5px solid ${b.type==='thought'?'#6c5ce7':'#1a1a1a'};
+                        border-radius:${b.type==='thought'?'40px':'18px'};
+                        display:flex;align-items:center;justify-content:center;
+                        padding:6px;font-family:Nunito,sans-serif;font-weight:700;font-size:12px;
+                        text-align:center;word-break:break-word;overflow:hidden;
+                        box-shadow:3px 3px 0px rgba(0,0,0,0.3);">
+                        ${b.text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
+                    </div>`).join('')}
+                </div>` : ''}
             </div>
             <p class="post-title" style="margin-top: 1rem;">${content.title}</p>
             <p class="post-desc">${author.handle} · ${content.desc}</p>
@@ -498,20 +514,24 @@ const initApp = () => {
         const viewerContent = document.getElementById('webtoon-content');
         viewerContent.innerHTML = ''; // 화면 초기화
         
+        // 이미지를 감쌀 relative 컨테이너 (버블 오버레이용)
+        const imgWrap = document.createElement('div');
+        imgWrap.style.cssText = 'position:relative;width:100%;';
+
         if (content.imageUrls && content.imageUrls.length > 0) {
             // 여러 사진 업로드된 경우 세로로 스크롤
             content.imageUrls.forEach(url => {
                 const img = document.createElement('img');
                 img.src = url;
                 img.className = 'webtoon-image';
-                viewerContent.appendChild(img);
+                imgWrap.appendChild(img);
             });
         } else if (content.imageUrl) {
             // 과거 데이터 (사진 1장)
             const img = document.createElement('img');
             img.src = content.imageUrl;
             img.className = 'webtoon-image';
-            viewerContent.appendChild(img);
+            imgWrap.appendChild(img);
         } else {
             // 기본 데이터 (이미지 없고 css 클래스 배경만 있는 경우)
             const placeholder = document.createElement('div');
@@ -528,9 +548,35 @@ const initApp = () => {
                     <p class="comic-scene" style="font-size: 1rem; font-style: italic;">${content.scene}</p>
                 </div>
             `;
-            viewerContent.appendChild(placeholder);
+            imgWrap.appendChild(placeholder);
         }
-        
+
+        // 버블 오버레이 렌더
+        if (content.bubbles && content.bubbles.length > 0) {
+            const bubbleLayer = document.createElement('div');
+            bubbleLayer.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:10;';
+            content.bubbles.forEach(b => {
+                const el = document.createElement('div');
+                el.style.cssText = `
+                    position:absolute;
+                    left:${b.leftPct}%;top:${b.topPct}%;
+                    width:${b.widthPct}%;height:${b.heightPct}%;
+                    background:${b.type==='thought'?'#f0f0ff':'#fff'};
+                    border:2.5px solid ${b.type==='thought'?'#6c5ce7':'#1a1a1a'};
+                    border-radius:${b.type==='thought'?'40px':'18px'};
+                    display:flex;align-items:center;justify-content:center;
+                    padding:6px;font-family:Nunito,sans-serif;font-weight:700;font-size:14px;
+                    text-align:center;word-break:break-word;overflow:hidden;
+                    box-shadow:3px 3px 0px rgba(0,0,0,0.3);
+                `;
+                el.textContent = b.text;
+                bubbleLayer.appendChild(el);
+            });
+            imgWrap.appendChild(bubbleLayer);
+        }
+
+        viewerContent.appendChild(imgWrap);
+
         document.getElementById('webtoon-viewer-screen').classList.remove('hidden');
     }
 
@@ -1811,6 +1857,32 @@ const initApp = () => {
         }
         if (publishBtn) publishBtn.textContent = '📝 Publishing...';
 
+        // 말풍선/생각풍선 데이터 수집 (preview-panels 기준 상대 좌표로 저장)
+        const layer = document.getElementById('bubble-layer');
+        const panels = document.getElementById('preview-panels');
+        const layerRect = layer.getBoundingClientRect();
+        const panelsRect = panels.getBoundingClientRect();
+        const panelsW = panelsRect.width || 1;
+        const panelsH = panelsRect.height || 1;
+        const offsetX = panelsRect.left - layerRect.left;
+        const offsetY = panelsRect.top - layerRect.top;
+        const bubbles = [];
+        layer.querySelectorAll('.canvas-bubble').forEach(b => {
+            const textEl = b.querySelector('[contenteditable]');
+            const bLeft = parseFloat(b.style.left) || 0;
+            const bTop = parseFloat(b.style.top) || 0;
+            const bW = b.offsetWidth;
+            const bH = b.offsetHeight;
+            bubbles.push({
+                type: b.dataset.bubbleType,
+                text: textEl ? textEl.textContent : '',
+                leftPct: +((bLeft - offsetX) / panelsW * 100).toFixed(2),
+                topPct: +((bTop - offsetY) / panelsH * 100).toFixed(2),
+                widthPct: +(bW / panelsW * 100).toFixed(2),
+                heightPct: +(bH / panelsH * 100).toFixed(2),
+            });
+        });
+
         const newPostId = `local-${Date.now()}`;
         const newPost = {
             id: newPostId,
@@ -1820,7 +1892,8 @@ const initApp = () => {
             imageUrls: driveImageUrls,   // Google Drive URLs (fallback: base64)
             imageClass: 'custom-upload',
             time: new Date().toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }),
-            baseLikes: 0, likes: {}, comments: []
+            baseLikes: 0, likes: {}, comments: [],
+            bubbles: bubbles,
         };
 
         // 1) 메모리 반영
