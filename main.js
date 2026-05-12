@@ -516,11 +516,9 @@ const initApp = () => {
                     <p class="post-time">${content.time}</p>
                 </div>
             </div>
-            <div class="post-images-container" style="position:relative; display: flex; flex-direction: column; cursor: pointer;" data-webtoon-trigger="${postId}">
+            <div class="post-images-container" style="position:relative; overflow:hidden; border-radius:12px; cursor:pointer; max-height:400px;" data-webtoon-trigger="${postId}">
                 ${(content.imageUrls && content.imageUrls.length > 0)
-                  ? content.imageUrls.map(url => `
-                      <img src="${url}" class="webtoon-feed-img" style="width: 100%; display: block; filter: saturate(1.2) contrast(1.1); box-shadow: 0 4px 15px rgba(0,0,0,0.5);" />
-                    `).join('')
+                  ? `<img src="${content.imageUrls[0]}" class="webtoon-feed-img" style="width:100%; display:block; object-fit:cover; max-height:400px; filter:saturate(1.2) contrast(1.1);" />`
                   : `<div class="post-image ${content.imageClass}" ${content.imageUrl ? `style="background-image: url(${content.imageUrl}); background-size: cover; background-position: center;"` : ''}>
                         <div class="post-image-inner">
                             <p class="comic-label">${content.label || ''}</p>
@@ -528,21 +526,10 @@ const initApp = () => {
                         </div>
                      </div>`
                 }
-                ${(content.bubbles && content.bubbles.length > 0) ? `
-                <div style="position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:10;">
-                    ${content.bubbles.map(b => `
-                    <div style="position:absolute;
-                        left:${b.leftPct}%;top:${b.topPct}%;
-                        width:${b.widthPct}%;height:${b.heightPct}%;
-                        background:${b.type==='thought'?'#f0f0ff':'#fff'};
-                        border:2.5px solid ${b.type==='thought'?'#6c5ce7':'#1a1a1a'};
-                        border-radius:${b.type==='thought'?'40px':'18px'};
-                        display:flex;align-items:center;justify-content:center;
-                        padding:6px;font-family:Nunito,sans-serif;font-weight:700;font-size:12px;
-                        text-align:center;word-break:break-word;overflow:hidden;
-                        box-shadow:3px 3px 0px rgba(0,0,0,0.3);">
-                        ${b.text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
-                    </div>`).join('')}
+                ${(content.imageUrls && content.imageUrls.length > 1) ? `
+                <div style="position:absolute;bottom:0;left:0;right:0;height:120px;background:linear-gradient(to top,rgba(0,0,0,0.85) 0%,rgba(0,0,0,0.4) 50%,transparent 100%);pointer-events:none;z-index:11;"></div>
+                <div style="position:absolute;bottom:14px;left:0;right:0;display:flex;align-items:center;justify-content:center;gap:8px;z-index:12;pointer-events:none;">
+                    <span style="background:rgba(245,208,0,0.95);color:#1a1a1a;padding:8px 18px;border-radius:20px;font-family:Nunito,sans-serif;font-weight:900;font-size:13px;box-shadow:0 2px 12px rgba(0,0,0,0.4);letter-spacing:0.02em;">📖 Tap to read · ${content.imageUrls.length} panels</span>
                 </div>` : ''}
             </div>
             <p class="post-title" style="margin-top: 1rem;">${content.title}</p>
