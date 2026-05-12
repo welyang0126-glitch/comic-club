@@ -209,10 +209,11 @@ const initApp = () => {
             });
         }
 
-        // 피드에 포스트 주입 (.feed-banner 아래에)
+        // 피드에 포스트 주입 (.feed-banner 아래에) — 기존 카드 제거 후 재주입
         const feedBody = document.querySelector('.feed-body');
         const banner = feedBody?.querySelector('.feed-banner');
         if (banner) {
+            feedBody.querySelectorAll('.feed-post').forEach(el => el.remove());
             const htmls = Object.keys(POSTS_CONTENT).map(buildPostCardHTML).filter(Boolean);
             if (htmls.length > 0) banner.insertAdjacentHTML('afterend', htmls.join(''));
         }
@@ -1913,17 +1914,8 @@ const initApp = () => {
             saveLocalPost(newPost);
         }
 
-        // 3) 피드 DOM 즉시 주입 (.feed-banner 기준)
-        const feedBody = document.querySelector('.feed-body');
-        const banner = feedBody?.querySelector('.feed-banner');
-        if (banner) {
-            feedBody.querySelector('.feed-empty-state')?.remove();
-            const html = buildPostCardHTML(newPostId);
-            if (html) {
-                banner.insertAdjacentHTML('afterend', html);
-                renderFeedPost(newPostId);
-            }
-        }
+        // 3) 피드 DOM 주입은 showScreen('feed') → loadBackendData()에서 처리
+        //    (여기서 직접 주입하면 loadBackendData에서 다시 주입되어 중복 발생)
 
         // 4) 폼/캔버스 초기화
         uploadedImages = [];
