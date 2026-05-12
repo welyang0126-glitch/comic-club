@@ -1,4 +1,66 @@
 const initApp = () => {
+    // ── 토스트 알림 ──────────────────────────────────────
+    function showToast(msg) {
+        let toast = document.getElementById('comic-toast');
+        if (!toast) {
+            toast = document.createElement('div');
+            toast.id = 'comic-toast';
+            toast.style.cssText = 'position:fixed;bottom:80px;left:50%;transform:translateX(-50%) translateY(20px);background:#1a1a1a;color:#fff;padding:12px 24px;border-radius:12px;font-family:Nunito,sans-serif;font-weight:700;font-size:14px;z-index:99999;opacity:0;transition:opacity 0.3s,transform 0.3s;pointer-events:none;box-shadow:0 4px 20px rgba(0,0,0,0.4);';
+            document.body.appendChild(toast);
+        }
+        toast.textContent = msg;
+        toast.style.opacity = '1';
+        toast.style.transform = 'translateX(-50%) translateY(0)';
+        clearTimeout(toast._timer);
+        toast._timer = setTimeout(() => {
+            toast.style.opacity = '0';
+            toast.style.transform = 'translateX(-50%) translateY(20px)';
+        }, 2500);
+    }
+
+    // ── 발행 완료 센터 알림 ────────────────────────────────
+    function showPublishSuccess(callback) {
+        const overlay = document.createElement('div');
+        overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.55);z-index:100000;display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity 0.3s;backdrop-filter:blur(4px);';
+
+        const box = document.createElement('div');
+        box.style.cssText = 'background:#1e1e2e;border:3px solid #f5d000;border-radius:24px;padding:40px 48px;text-align:center;max-width:340px;width:90%;transform:scale(0.7);transition:transform 0.35s cubic-bezier(0.34,1.56,0.64,1);box-shadow:0 20px 60px rgba(0,0,0,0.5),0 0 40px rgba(245,208,0,0.15);';
+        box.innerHTML = `
+            <div style="font-size:56px;margin-bottom:16px;animation:bounce 0.6s ease;">🎉</div>
+            <div style="font-size:22px;font-weight:900;color:#f5d000;font-family:Nunito,sans-serif;margin-bottom:8px;">Published!</div>
+            <div style="font-size:14px;color:#aaa;font-family:Nunito,sans-serif;line-height:1.5;">Your comic is now live on the feed.<br>Share it with your friends!</div>
+        `;
+
+        overlay.appendChild(box);
+        document.body.appendChild(overlay);
+
+        // 스타일 태그로 bounce 애니메이션 추가 (한 번만)
+        if (!document.getElementById('publish-success-keyframes')) {
+            const style = document.createElement('style');
+            style.id = 'publish-success-keyframes';
+            style.textContent = '@keyframes bounce{0%{transform:scale(0)}50%{transform:scale(1.2)}100%{transform:scale(1)}}';
+            document.head.appendChild(style);
+        }
+
+        requestAnimationFrame(() => {
+            overlay.style.opacity = '1';
+            box.style.transform = 'scale(1)';
+        });
+
+        // 컨페티 효과
+        if (window.spawnConfetti) window.spawnConfetti();
+
+        // 2초 후 자동 닫기 → 피드로 이동
+        setTimeout(() => {
+            overlay.style.opacity = '0';
+            box.style.transform = 'scale(0.7)';
+            setTimeout(() => {
+                overlay.remove();
+                if (callback) callback();
+            }, 350);
+        }, 2000);
+    }
+
     // --- 🎵 귀여운 반응형 소리 (Web Audio API) ---
     let audioCtx;
     function playCuteSound() {
@@ -1928,8 +1990,7 @@ const initApp = () => {
 
         if (publishBtn) { publishBtn.textContent = '⬆ Publish to Feed'; publishBtn.disabled = false; }
 
-        showToast('🎉 Comic published!');
-        setTimeout(() => showScreen('feed'), 600);
+        showPublishSuccess(() => showScreen('feed'));
     }
 
     const descArea = document.getElementById('desc-area');
