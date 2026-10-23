@@ -355,8 +355,13 @@
                     <div class="profile-avatar-inner" id="avatar-inner" style="background-size: cover; background-position: center;">
                         <span class="avatar-emoji" id="avatar-emoji"></span>
                     </div>
+                    <div class="avatar-bg-pattern" id="avatar-bg-pattern"></div>
                     <div class="avatar-badge" id="avatar-badge">⭐</div>
+                    <span class="avatar-accessory" id="avatar-accessory"></span>
                 </div>
+                <!-- avatar-ring은 overflow:hidden이라(모양 옵션 클리핑에 필요) 링 밖으로
+                     튀어나오는 스티커는 wrap의 직접 자식으로 둬야 잘리지 않는다 -->
+                <span class="avatar-sticker" id="avatar-sticker"></span>
                 <p class="profile-name">Kevin</p>
                 <p class="profile-hearts" id="profile-heart-display">108 ❤️</p>
             </div>
@@ -458,6 +463,26 @@
                     </div>
                 </div>
 
+                <!-- BG PATTERN -->
+                <p class="pf-section-label">BG PATTERN</p>
+                <div class="pf-option-row" id="bgpattern-row">
+                    <div class="pf-option selected" data-group="bgPattern" data-value="none" data-free="true" title="Plain">
+                        <div class="opt-preview" style="border-radius:50%; background:#f5f5f5; border:1px solid #ddd;"></div>
+                    </div>
+                    <div class="pf-option" data-group="bgPattern" data-value="dots" data-free="true" title="Dots">
+                        <div class="opt-preview" style="border-radius:50%; background:radial-gradient(circle,#999 1.5px,transparent 1.5px) 0 0/8px 8px, #fff;"></div>
+                    </div>
+                    <div class="pf-option" data-group="bgPattern" data-value="stars" data-free="true" title="Stars">
+                        <div class="opt-preview" style="border-radius:50%; background:#1a1a2e; font-size:0.9rem;">✨</div>
+                    </div>
+                    <div class="pf-option" data-group="bgPattern" data-value="gradient" data-free="true" title="Gradient">
+                        <div class="opt-preview" style="border-radius:50%; background:linear-gradient(135deg,#667eea,#764ba2);"></div>
+                    </div>
+                    <div class="pf-option" data-group="bgPattern" data-value="comic" data-free="true" title="Comic">
+                        <div class="opt-preview" style="border-radius:50%; background:repeating-linear-gradient(45deg,#f5d000 0,#f5d000 2px,#fff 2px,#fff 5px);"></div>
+                    </div>
+                </div>
+
                 <!-- SHAPES -->
                 <p class="pf-section-label">SHAPES</p>
                 <div class="pf-option-row" id="shape-row">
@@ -507,6 +532,95 @@
                     </div>
                     <div class="pf-option locked" data-group="effect" data-value="gold" data-item="Golden Frame">
                         <span class="opt-emoji">🔒</span>
+                    </div>
+                </div>
+
+                <!-- FRAME COLOR -->
+                <p class="pf-section-label">FRAME COLOR</p>
+                <div class="pf-option-row" id="frame-row">
+                    <div class="pf-option selected" data-group="frame" data-value="none" data-free="true" title="None">
+                        <div class="opt-preview" style="border-radius:50%; background:#f5f5f5; border:1px solid #ddd;"></div>
+                    </div>
+                    <div class="pf-option" data-group="frame" data-value="gold" data-free="true" title="Gold">
+                        <div class="opt-preview" style="border-radius:50%; background:linear-gradient(135deg,#c8a000,#f5d000);"></div>
+                    </div>
+                    <div class="pf-option" data-group="frame" data-value="silver" data-free="true" title="Silver">
+                        <div class="opt-preview" style="border-radius:50%; background:linear-gradient(135deg,#aaa,#ddd);"></div>
+                    </div>
+                    <div class="pf-option" data-group="frame" data-value="purple" data-free="true" title="Purple">
+                        <div class="opt-preview" style="border-radius:50%; background:linear-gradient(135deg,#6c5ce7,#a29bfe);"></div>
+                    </div>
+                    <div class="pf-option" data-group="frame" data-value="red" data-free="true" title="Red">
+                        <div class="opt-preview" style="border-radius:50%; background:linear-gradient(135deg,#e24b4a,#ff7675);"></div>
+                    </div>
+                    <div class="pf-option" data-group="frame" data-value="rainbow" data-free="true" title="Rainbow">
+                        <div class="opt-preview" style="border-radius:50%; background:linear-gradient(135deg,#ff0000,#ff7700,#ffff00,#00ff00,#0000ff,#8b00ff);"></div>
+                    </div>
+                </div>
+
+                <!-- ACCESSORY -->
+                <p class="pf-section-label">ACCESSORY</p>
+                <div class="pf-option-row" id="accessory-row">
+                    <div class="pf-option selected" data-group="accessory" data-value="none" data-free="true" title="None">
+                        <span class="opt-emoji" style="font-size:1.1rem; color:#ccc;">—</span>
+                    </div>
+                    <div class="pf-option" data-group="accessory" data-value="glasses" data-free="true" title="Glasses">
+                        <span class="opt-emoji">👓</span>
+                    </div>
+                    <div class="pf-option" data-group="accessory" data-value="sunglasses" data-free="true" title="Sunglasses">
+                        <span class="opt-emoji">🕶️</span>
+                    </div>
+                    <div class="pf-option" data-group="accessory" data-value="hat" data-free="true" title="Hat">
+                        <span class="opt-emoji">🎩</span>
+                    </div>
+                    <div class="pf-option" data-group="accessory" data-value="crown" data-free="true" title="Crown">
+                        <span class="opt-emoji">👑</span>
+                    </div>
+                    <div class="pf-option" data-group="accessory" data-value="headphones" data-free="true" title="Headphones">
+                        <span class="opt-emoji">🎧</span>
+                    </div>
+                </div>
+
+                <!-- NAME COLOR -->
+                <p class="pf-section-label">NAME COLOR</p>
+                <div class="pf-option-row" id="namecolor-row">
+                    <div class="pf-option selected" data-group="nameColor" data-value="#1a1a1a" data-free="true" title="Black">
+                        <span class="opt-emoji" style="color:#1a1a1a; text-shadow:0 0 1px #000;">●</span>
+                    </div>
+                    <div class="pf-option" data-group="nameColor" data-value="#f5d000" data-free="true" title="Gold">
+                        <span class="opt-emoji" style="color:#f5d000; text-shadow:0 0 1px #000;">●</span>
+                    </div>
+                    <div class="pf-option" data-group="nameColor" data-value="#e24b4a" data-free="true" title="Red">
+                        <span class="opt-emoji" style="color:#e24b4a; text-shadow:0 0 1px #000;">●</span>
+                    </div>
+                    <div class="pf-option" data-group="nameColor" data-value="#6c5ce7" data-free="true" title="Purple">
+                        <span class="opt-emoji" style="color:#6c5ce7; text-shadow:0 0 1px #000;">●</span>
+                    </div>
+                    <div class="pf-option" data-group="nameColor" data-value="#00b894" data-free="true" title="Green">
+                        <span class="opt-emoji" style="color:#00b894; text-shadow:0 0 1px #000;">●</span>
+                    </div>
+                </div>
+
+                <!-- STICKER -->
+                <p class="pf-section-label">STICKER</p>
+                <div class="pf-option-row" id="sticker-row">
+                    <div class="pf-option selected" data-group="sticker" data-value="none" data-free="true" title="None">
+                        <span class="opt-emoji" style="font-size:1.1rem; color:#ccc;">—</span>
+                    </div>
+                    <div class="pf-option" data-group="sticker" data-value="fire" data-free="true" title="Fire">
+                        <span class="opt-emoji">🔥</span>
+                    </div>
+                    <div class="pf-option" data-group="sticker" data-value="star" data-free="true" title="Star">
+                        <span class="opt-emoji">⭐</span>
+                    </div>
+                    <div class="pf-option" data-group="sticker" data-value="lightning" data-free="true" title="Lightning">
+                        <span class="opt-emoji">⚡</span>
+                    </div>
+                    <div class="pf-option" data-group="sticker" data-value="rainbow" data-free="true" title="Rainbow">
+                        <span class="opt-emoji">🌈</span>
+                    </div>
+                    <div class="pf-option" data-group="sticker" data-value="verified" data-free="true" title="Verified">
+                        <span class="opt-emoji">✅</span>
                     </div>
                 </div>
 

@@ -567,11 +567,15 @@ const initApp = () => {
     let webtoonClickTimer = null;       // 더블탭 좋아요와 구분하기 위한 단일 클릭 지연 타이머
 
     // 선택된 스타일 (적용 전)
-    let pendingStyle = { shape: 'circle', badge: 'star', effect: 'none', gender: 'boy', skin: 'white', hair: 'black', expression: 'smile', bg: 'mint' };
+    let pendingStyle = { shape: 'circle', badge: 'star', effect: 'none', gender: 'boy', skin: 'white', hair: 'black', expression: 'smile', bg: 'mint', frame: 'none', accessory: 'none', nameColor: '#1a1a1a', bgPattern: 'none', sticker: 'none' };
     // 실제 적용된 스타일
-    let appliedStyle = { shape: 'circle', badge: 'star', effect: 'none', gender: 'boy', skin: 'white', hair: 'black', expression: 'smile', bg: 'mint' };
+    let appliedStyle = { shape: 'circle', badge: 'star', effect: 'none', gender: 'boy', skin: 'white', hair: 'black', expression: 'smile', bg: 'mint', frame: 'none', accessory: 'none', nameColor: '#1a1a1a', bgPattern: 'none', sticker: 'none' };
 
     const badgeEmojis = { star: '⭐', fire: '🔥', shield: '🛡️', crown: '👑' };
+    const accessoryEmojis = { glasses: '👓', sunglasses: '🕶️', hat: '🎩', crown: '👑', headphones: '🎧' };
+    const stickerEmojis = { fire: '🔥', star: '⭐', lightning: '⚡', rainbow: '🌈', verified: '✅' };
+    const frameColors = { gold: '#f5d000', silver: '#c0c0c0', purple: '#6c5ce7', red: '#e24b4a' };
+    const rainbowFrameGradient = 'linear-gradient(135deg,#ff0000,#ff7700,#ffff00,#00ff00,#0000ff,#8b00ff)';
 
     // ── 화면 전환 ──────────────────────────────────────
     const allScreens = ['feed-screen', 'upload-screen', 'shop-screen', 'profile-screen', 'user-profile-screen', 'preview-screen'];
@@ -907,6 +911,36 @@ const initApp = () => {
 
         // Badge
         badge.textContent = badgeEmojis[style.badge] || '⭐';
+
+        // Frame color (링 테두리)
+        ring.style.borderImage = '';
+        ring.style.borderColor = '';
+        if (style.frame === 'rainbow') {
+            ring.style.borderImage = `${rainbowFrameGradient} 1`;
+        } else if (frameColors[style.frame]) {
+            ring.style.borderColor = frameColors[style.frame];
+        }
+
+        // Accessory (얼굴 위 오버레이)
+        const accessoryEl = document.getElementById('avatar-accessory');
+        if (accessoryEl) accessoryEl.textContent = accessoryEmojis[style.accessory] || '';
+
+        // Sticker (좌상단 오버레이)
+        const stickerEl = document.getElementById('avatar-sticker');
+        if (stickerEl) stickerEl.textContent = stickerEmojis[style.sticker] || '';
+
+        // BG 패턴 (SVG 위에 살짝 겹치는 오버레이)
+        const patternEl = document.getElementById('avatar-bg-pattern');
+        if (patternEl) {
+            patternEl.className = 'avatar-bg-pattern';
+            if (style.bgPattern && style.bgPattern !== 'none') {
+                patternEl.classList.add('pattern-' + style.bgPattern);
+            }
+        }
+
+        // 이름 색상
+        const nameEl = document.querySelector('.profile-name');
+        if (nameEl) nameEl.style.color = style.nameColor || '#1a1a1a';
     }
 
     // ── 프로필 화면 렌더 ───────────────────────────────
@@ -1251,8 +1285,8 @@ const initApp = () => {
         hearts = 108;
         loggedInUser = 'Guest';
         purchasedItems.clear();
-        pendingStyle = { shape: 'circle', badge: 'star', effect: 'none', gender: 'boy', skin: 'white', hair: 'black' };
-        appliedStyle = { shape: 'circle', badge: 'star', effect: 'none', gender: 'boy', skin: 'white', hair: 'black' };
+        pendingStyle = { shape: 'circle', badge: 'star', effect: 'none', gender: 'boy', skin: 'white', hair: 'black', expression: 'smile', bg: 'mint', frame: 'none', accessory: 'none', nameColor: '#1a1a1a', bgPattern: 'none', sticker: 'none' };
+        appliedStyle = { shape: 'circle', badge: 'star', effect: 'none', gender: 'boy', skin: 'white', hair: 'black', expression: 'smile', bg: 'mint', frame: 'none', accessory: 'none', nameColor: '#1a1a1a', bgPattern: 'none', sticker: 'none' };
         updateAllAvatarBtns('?', '#ccc');
         exitGuestMode();
     }
