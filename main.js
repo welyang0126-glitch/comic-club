@@ -1,4 +1,28 @@
+// ── 전역 에러 로깅 (initApp 실행 여부와 무관하게 항상 등록) ──────
+window.addEventListener('unhandledrejection', e => {
+    console.error('Unhandled Promise rejection:', e.reason);
+});
+window.addEventListener('error', e => {
+    console.error('Global error:', e.message, e.filename, e.lineno);
+});
+
 const initApp = () => {
+    // ── 네트워크 요청에 타임아웃 적용 ──────────────────────
+    // 서버가 응답하지 않을 때 fetch가 무한 대기하며 UI가 멈춘 것처럼 보이는 것을 방지
+    async function fetchWithTimeout(url, options = {}, timeout = 10000) {
+        const controller = new AbortController();
+        const id = setTimeout(() => controller.abort(), timeout);
+        try {
+            const res = await fetch(url, { ...options, signal: controller.signal });
+            clearTimeout(id);
+            return res;
+        } catch (err) {
+            clearTimeout(id);
+            if (err.name === 'AbortError') throw new Error('Request timeout');
+            throw err;
+        }
+    }
+
     // ── 토스트 알림 ──────────────────────────────────────
     function showToast(msg) {
         let toast = document.getElementById('comic-toast');
@@ -230,8 +254,8 @@ const initApp = () => {
     async function loadBackendData() {
         try {
             const [usersRes, postsRes] = await Promise.all([
-                fetch('/api/users'),
-                fetch('/api/posts')
+                fetchWithTimeout('/api/users'),
+                fetchWithTimeout('/api/posts')
             ]);
             const usersData = await usersRes.json();
             const postsData = await postsRes.json();
@@ -372,7 +396,7 @@ const initApp = () => {
         else POSTS_CONTENT[postId].likes[uid] = true;
 
         try {
-            await fetch(`/api/posts/${postId}/like`, {
+            await fetchWithTimeout(`/api/posts/${postId}/like`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ uid })
@@ -390,7 +414,7 @@ const initApp = () => {
     async function addComment(postId, currentUser, text) {
         if (!POSTS_CONTENT[postId]) return;
         try {
-            const res = await fetch(`/api/posts/${postId}/comments`, {
+            const res = await fetchWithTimeout(`/api/posts/${postId}/comments`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ userId: currentUser, text })
@@ -996,7 +1020,7 @@ const initApp = () => {
             // 로그인 상태라면 Railway 백엔드로 저장
             if (loggedInUser !== 'Guest') {
                 const userKey = loggedInUser.toLowerCase();
-                fetch(`/api/users/${userKey}/update`, {
+                fetchWithTimeout(`/api/users/${userKey}/update`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ avatar: appliedStyle })
@@ -1098,7 +1122,7 @@ const initApp = () => {
             }
 
             // 백엔드가 있을 경우 동기화 (실패해도 무시)
-            fetch(`/api/posts/${postId}?userId=${loggedInUser}`, { method: 'DELETE' }).catch(() => {});
+            fetchWithTimeout(`/api/posts/${postId}?userId=${loggedInUser}`, { method: 'DELETE' }).catch(() => {});
         }
 
         // ── 공유 버튼 클릭 ───────────────────────────────
@@ -1181,7 +1205,7 @@ const initApp = () => {
 
             // 서버에 하트 잔액 및 구매 목록 저장
             if (loggedInUser !== 'Guest') {
-                fetch(`/api/users/${loggedInUser.toLowerCase()}/update`, {
+                fetchWithTimeout(`/api/users/${loggedInUser.toLowerCase()}/update`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ hearts, items: [...purchasedItems] })
@@ -1403,7 +1427,7 @@ const initApp = () => {
                 return;
             }
             try {
-                const res = await fetch(`/api/auth/check?id=${idValue}`);
+                const res = await fetchWithTimeout(`/api/auth/check?id=${idValue}`);
                 const data = await res.json();
                 if (data.exists) {
                     idCheckMsg.textContent = '이미 사용 중인 아이디입니다.';
@@ -1426,7 +1450,7 @@ const initApp = () => {
         const pwd = document.getElementById('password').value;
 
         try {
-            const res = await fetch('/api/auth/login', {
+            const res = await fetchWithTimeout('/api/auth/login', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ id, password: pwd })
@@ -1517,7 +1541,7 @@ const initApp = () => {
             }
 
             try {
-                const res = await fetch('/api/auth/signup', {
+                const res = await fetchWithTimeout('/api/auth/signup', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ id: newId, pwd, name: newName })
@@ -1659,7 +1683,6 @@ const initApp = () => {
         const editorToolbar = document.getElementById('editor-toolbar');
         if (editorToolbar) editorToolbar.style.display = uploadedImages.length > 0 ? 'flex' : 'none';
         if (uploadedImages.length === 0) {
-            document.getElementById('gap-slider-wrap').style.display = 'none';
             dropZone.querySelectorAll('.speech-bubble').forEach(b => b.remove());
         }
     };
@@ -2110,6 +2133,24 @@ const initApp = () => {
     if (uploadBtn) uploadBtn.addEventListener('click', openPreview);
 
     // ── 발행 함수 ───────────────────────────────────────
+    // 이미지 압축: 긴 변 기준 maxWidth로 리사이즈 + JPEG 재인코딩 (업로드 용량/시간 절감)
+    function compressImage(dataUrl, maxWidth, quality) {
+        return new Promise(resolve => {
+            const img = new Image();
+            img.onload = () => {
+                const ratio = Math.min(maxWidth / img.width, 1);
+                const canvas = document.createElement('canvas');
+                canvas.width = Math.round(img.width * ratio);
+                canvas.height = Math.round(img.height * ratio);
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                resolve(canvas.toDataURL('image/jpeg', quality));
+            };
+            img.onerror = () => resolve(dataUrl); // 압축 실패 시 원본 그대로 사용
+            img.src = dataUrl;
+        });
+    }
+
     async function publishComic() {
         const titleInput = document.querySelector('.field-input').value.trim();
         const descInput = document.getElementById('desc-area').value.trim();
@@ -2118,118 +2159,106 @@ const initApp = () => {
         if (uploadedImages.length > 5) showToast('Max 5 panels recommended for performance');
 
         const publishBtn = document.getElementById('preview-publish-btn');
-        if (publishBtn) { publishBtn.textContent = '📤 Uploading images...'; publishBtn.disabled = true; }
+        // disabled=true를 즉시 적용해 중복 클릭으로 인한 재진입을 막는다
+        if (publishBtn) { publishBtn.textContent = '📤 Compressing images...'; publishBtn.disabled = true; }
 
-        const ukey = getUser();
-
-        // 로그인하지 않은 경우 게스트 유저 자동 생성
-        if (!USERS_DATA[ukey]) {
-            USERS_DATA[ukey] = {
-                name: loggedInUser || 'Guest', handle: '@' + ukey,
-                color: '#aaa', initial: (loggedInUser || 'G').charAt(0).toUpperCase(),
-                bio: '', followers: 0, postIds: []
-            };
-        }
-
-        // ── 이미지를 Google Drive에 업로드 ──────────────────
-        const driveImageUrls = [];
-        for (let i = 0; i < uploadedImages.length; i++) {
-            if (publishBtn) publishBtn.textContent = `📤 Uploading ${i + 1}/${uploadedImages.length}...`;
-            try {
-                const formData = new FormData();
-                if (uploadedFiles[i]) {
-                    formData.append('image', uploadedFiles[i]);
-                } else {
-                    // base64 → Blob 변환 (캔버스 편집 등으로 File 객체가 없는 경우)
-                    const resp = await fetch(uploadedImages[i]);
-                    const blob = await resp.blob();
-                    formData.append('image', blob, `panel_${i + 1}.png`);
-                }
-                const uploadRes = await fetch('/api/upload-image', { method: 'POST', body: formData });
-                const uploadData = await uploadRes.json();
-                if (uploadData.success) {
-                    driveImageUrls.push(uploadData.url);
-                } else {
-                    throw new Error(uploadData.error || 'Upload failed');
-                }
-            } catch(e) {
-                console.warn(`Panel ${i + 1} 이미지 업로드 실패, base64 fallback:`, e);
-                driveImageUrls.push(uploadedImages[i]); // fallback to base64
-            }
-        }
-        if (publishBtn) publishBtn.textContent = '📝 Publishing...';
-
-        // 말풍선/생각풍선 데이터 수집 (preview-panels 기준 상대 좌표로 저장)
-        const layer = document.getElementById('bubble-layer');
-        const panels = document.getElementById('preview-panels');
-        const layerRect = layer.getBoundingClientRect();
-        const panelsRect = panels.getBoundingClientRect();
-        const panelsW = panelsRect.width || 1;
-        const panelsH = panelsRect.height || 1;
-        const offsetX = panelsRect.left - layerRect.left;
-        const offsetY = panelsRect.top - layerRect.top;
-        const bubbles = [];
-        layer.querySelectorAll('.canvas-bubble').forEach(b => {
-            const textEl = b.querySelector('[contenteditable]');
-            const bLeft = parseFloat(b.style.left) || 0;
-            const bTop = parseFloat(b.style.top) || 0;
-            const bW = b.offsetWidth;
-            const bH = b.offsetHeight;
-            bubbles.push({
-                type: b.dataset.bubbleType,
-                text: textEl ? textEl.textContent : '',
-                leftPct: +((bLeft - offsetX) / panelsW * 100).toFixed(2),
-                topPct: +((bTop - offsetY) / panelsH * 100).toFixed(2),
-                widthPct: +(bW / panelsW * 100).toFixed(2),
-                heightPct: +(bH / panelsH * 100).toFixed(2),
-            });
-        });
-
-        const newPostId = `local-${Date.now()}`;
-        const newPost = {
-            id: newPostId,
-            authorId: ukey,
-            title: titleInput,
-            desc: descInput || '',
-            imageUrls: driveImageUrls,   // Google Drive URLs (fallback: base64)
-            imageClass: 'custom-upload',
-            time: new Date().toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }),
-            baseLikes: 0, likes: {}, comments: [],
-            bubbles: bubbles,
-        };
-
-        // 1) 메모리 반영
-        POSTS_CONTENT[newPostId] = newPost;
-        USERS_DATA[ukey].postIds.unshift(newPostId);
-
-        // 2) 백엔드 저장 (실패 시 localStorage fallback)
         try {
-            const res = await fetch('/api/posts', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(newPost)
+            const ukey = getUser();
+
+            // 로그인하지 않은 경우 게스트 유저 자동 생성
+            if (!USERS_DATA[ukey]) {
+                USERS_DATA[ukey] = {
+                    name: loggedInUser || 'Guest', handle: '@' + ukey,
+                    color: '#aaa', initial: (loggedInUser || 'G').charAt(0).toUpperCase(),
+                    bio: '', followers: 0, postIds: []
+                };
+            }
+
+            // 이미지 압축 (base64 용량 축소 — 서버에 별도 이미지 업로드 엔드포인트가 없어
+            // 모든 패널은 base64로 저장되므로, 전송/저장 용량을 줄이는 것이 중요하다)
+            const compressedImages = await Promise.all(
+                uploadedImages.map(dataUrl => compressImage(dataUrl, 1000, 0.75))
+            );
+
+            if (publishBtn) publishBtn.textContent = '📝 Publishing...';
+
+            // 말풍선/생각풍선 데이터 수집 (preview-panels 기준 상대 좌표로 저장)
+            const layer = document.getElementById('bubble-layer');
+            const panels = document.getElementById('preview-panels');
+            const layerRect = layer.getBoundingClientRect();
+            const panelsRect = panels.getBoundingClientRect();
+            const panelsW = panelsRect.width || 1;
+            const panelsH = panelsRect.height || 1;
+            const offsetX = panelsRect.left - layerRect.left;
+            const offsetY = panelsRect.top - layerRect.top;
+            const bubbles = [];
+            layer.querySelectorAll('.canvas-bubble').forEach(b => {
+                const textEl = b.querySelector('[contenteditable]');
+                const bLeft = parseFloat(b.style.left) || 0;
+                const bTop = parseFloat(b.style.top) || 0;
+                const bW = b.offsetWidth;
+                const bH = b.offsetHeight;
+                bubbles.push({
+                    type: b.dataset.bubbleType,
+                    text: textEl ? textEl.textContent : '',
+                    leftPct: +((bLeft - offsetX) / panelsW * 100).toFixed(2),
+                    topPct: +((bTop - offsetY) / panelsH * 100).toFixed(2),
+                    widthPct: +(bW / panelsW * 100).toFixed(2),
+                    heightPct: +(bH / panelsH * 100).toFixed(2),
+                });
             });
-            const data = await res.json();
-            if (!data.success) throw new Error('Backend save failed');
-        } catch(e) {
-            saveLocalPost(newPost);
+
+            const newPostId = `local-${Date.now()}`;
+            const newPost = {
+                id: newPostId,
+                authorId: ukey,
+                title: titleInput,
+                desc: descInput || '',
+                imageUrls: compressedImages,
+                imageClass: 'custom-upload',
+                time: new Date().toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }),
+                baseLikes: 0, likes: {}, comments: [],
+                bubbles: bubbles,
+            };
+
+            // 1) 메모리 반영
+            POSTS_CONTENT[newPostId] = newPost;
+            USERS_DATA[ukey].postIds.unshift(newPostId);
+
+            // 2) 백엔드 저장 (실패 시 localStorage fallback)
+            try {
+                const res = await fetchWithTimeout('/api/posts', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(newPost)
+                }, 20000);
+                const data = await res.json();
+                if (!data.success) throw new Error('Backend save failed');
+            } catch(e) {
+                console.warn('백엔드 저장 실패, localStorage에 보관:', e);
+                saveLocalPost(newPost);
+            }
+
+            // 3) 피드 DOM 주입은 showScreen('feed') → loadBackendData()에서 처리
+            //    (여기서 직접 주입하면 loadBackendData에서 다시 주입되어 중복 발생)
+
+            // 4) 폼/캔버스 초기화
+            uploadedImages = [];
+            uploadedFiles = [];
+            renderThumbnails();
+            document.querySelector('.field-input').value = '';
+            document.getElementById('desc-area').value = '';
+            document.getElementById('char-count').textContent = '0 / 240 characters';
+            clearCanvasBubbles();
+
+            showPublishSuccess(() => showScreen('feed'));
+        } catch (err) {
+            console.error('Publish failed:', err);
+            showToast('❌ Failed to publish. Please try again.');
+        } finally {
+            // 성공/실패 어느 쪽이든 버튼 상태를 반드시 복구한다 (무한 "Publishing..." 방지)
+            if (publishBtn) { publishBtn.textContent = '⬆ Publish to Feed'; publishBtn.disabled = false; }
         }
-
-        // 3) 피드 DOM 주입은 showScreen('feed') → loadBackendData()에서 처리
-        //    (여기서 직접 주입하면 loadBackendData에서 다시 주입되어 중복 발생)
-
-        // 4) 폼/캔버스 초기화
-        uploadedImages = [];
-        uploadedFiles = [];
-        renderThumbnails();
-        document.querySelector('.field-input').value = '';
-        document.getElementById('desc-area').value = '';
-        document.getElementById('char-count').textContent = '0 / 240 characters';
-        clearCanvasBubbles();
-
-        if (publishBtn) { publishBtn.textContent = '⬆ Publish to Feed'; publishBtn.disabled = false; }
-
-        showPublishSuccess(() => showScreen('feed'));
     }
 
     const descArea = document.getElementById('desc-area');

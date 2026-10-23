@@ -214,6 +214,21 @@ app.post('/api/posts', async (req, res) => {
     try {
         const body = req.body;
         const authorKey = (body.authorId || body.uid || '').toLowerCase();
+
+        // 게스트(미가입) 작성자 차단 — 클라이언트 UI는 이미 막고 있지만, API를 직접
+        // 호출하는 경우를 대비한 서버 측 방어
+        if (!authorKey || authorKey === 'guest' || authorKey === '@guest') {
+            return res.status(403).json({ success: false, error: 'Guests cannot post. Please sign in.' });
+        }
+        if (pool) {
+            const authorCheck = await pool.query('SELECT id FROM users WHERE id = $1', [authorKey]);
+            if (authorCheck.rows.length === 0) {
+                return res.status(403).json({ success: false, error: 'User not found' });
+            }
+        } else if (!localUsers[authorKey]) {
+            return res.status(403).json({ success: false, error: 'User not found' });
+        }
+
         const newPostId = body.id || ('post-' + Date.now());
         const postData = {
             ...body,
