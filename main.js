@@ -277,17 +277,81 @@ const initApp = () => {
             });
         }
 
-        // 피드에 포스트 주입 (.feed-banner 아래에) — 기존 카드 제거 후 재주입
+        renderFeedCards();
+    }
+
+    // 피드에 포스트 주입 (.feed-banner 아래에) — 기존 카드 제거 후 재주입
+    // currentFeedSort('latest'|'popular')에 따라 정렬만 다르게 적용
+    function renderFeedCards() {
         const feedBody = document.querySelector('.feed-body');
         const banner = feedBody?.querySelector('.feed-banner');
         if (banner) {
             feedBody.querySelectorAll('.feed-post').forEach(el => el.remove());
-            const htmls = Object.keys(POSTS_CONTENT).map(buildPostCardHTML).filter(Boolean);
+            let postIds = Object.keys(POSTS_CONTENT);
+            if (currentFeedSort === 'popular') {
+                postIds = postIds.slice().sort((a, b) => getLikeCount(b) - getLikeCount(a));
+            }
+            // latest: POSTS_CONTENT의 기존 순서(최신순) 유지
+            const htmls = postIds.map(buildPostCardHTML).filter(Boolean);
             if (htmls.length > 0) banner.insertAdjacentHTML('afterend', htmls.join(''));
         }
 
         initFeed();
     }
+
+    // ── 캐러셀(다중 패널 스와이프) ─────────────────────
+    function moveCarousel(carousel, dir) {
+        const track = carousel.querySelector('.carousel-track');
+        const dots = carousel.querySelectorAll('.carousel-dot');
+        const counter = carousel.querySelector('.carousel-counter');
+        const total = parseInt(carousel.dataset.total, 10);
+        let idx = parseInt(carousel.dataset.index, 10);
+        idx = (idx + dir + total) % total;
+        carousel.dataset.index = idx;
+
+        track.style.transform = `translateX(-${idx * 100}%)`;
+        dots.forEach((d, i) => d.classList.toggle('active', i === idx));
+        if (counter) counter.textContent = `${idx + 1} / ${total}`;
+    }
+
+    // 터치 스와이프로 캐러셀 넘기기 (이벤트 위임: 카드가 다시 그려져도 다시 등록할 필요 없음)
+    document.addEventListener('touchstart', (e) => {
+        const carousel = e.target.closest('.post-carousel');
+        if (carousel) carousel._touchStartX = e.touches[0].clientX;
+    }, { passive: true });
+
+    document.addEventListener('touchend', (e) => {
+        const carousel = e.target.closest('.post-carousel');
+        if (!carousel || carousel._touchStartX === undefined) return;
+        const diff = carousel._touchStartX - e.changedTouches[0].clientX;
+        carousel._touchStartX = undefined;
+        if (Math.abs(diff) > 50) moveCarousel(carousel, diff > 0 ? 1 : -1);
+    }, { passive: true });
+
+    // ── 더블탭(더블클릭) 좋아요 ──────────────────────────
+    function showDoubleTapHeart(container) {
+        const heart = document.createElement('div');
+        heart.className = 'double-tap-heart';
+        heart.textContent = '❤️';
+        container.appendChild(heart);
+        setTimeout(() => heart.remove(), 800);
+    }
+
+    document.addEventListener('dblclick', (e) => {
+        const trigger = e.target.closest('[data-webtoon-trigger]');
+        if (!trigger) return;
+        clearTimeout(webtoonClickTimer); // 웹툰 뷰어가 열리지 않도록 예약된 단일 클릭 취소
+
+        const postId = trigger.dataset.webtoonTrigger;
+        showDoubleTapHeart(trigger);
+
+        // 이미 좋아요한 상태면 더블탭해도 취소하지 않음(인스타그램과 동일).
+        // 게스트일 때는 click()이 기존 like-btn 핸들러의 로그인 유도 모달을 그대로 띄운다.
+        const likeBtn = trigger.closest('.feed-post')?.querySelector('.like-btn');
+        if (likeBtn && (isGuestMode() || !likeBtn.classList.contains('liked'))) {
+            likeBtn.click();
+        }
+    });
 
     function getLikeCount(postId, currentUser) {
         if (!POSTS_CONTENT[postId]) return 0;
@@ -461,15 +525,6 @@ const initApp = () => {
         Object.keys(POSTS_CONTENT).forEach(pid => renderFeedPost(pid));
     }
 
-    // 서버 데이터 최초 로딩
-    loadBackendData();
-
-    // 앱 재진입 시 게스트 모드 복원 (이 앱은 로그인 세션을 영속화하지 않으므로,
-    // 게스트로 둘러보던 상태만 새로고침 후에도 유지한다)
-    if (localStorage.getItem('comicclub_guest') === 'true') {
-        enterGuestMode();
-    }
-
     // ── localStorage DB 헬퍼 ─────────────────────────
     function getDB() {
         try { return JSON.parse(localStorage.getItem('comicclub_db2') || 'null') || { posts: [], users: {} }; }
@@ -484,6 +539,8 @@ const initApp = () => {
     let hearts = 108;
     let loggedInUser = 'Guest';
     const purchasedItems = new Set();   // 구매한 아이템 이름 목록
+    let currentFeedSort = 'latest';     // 'latest' | 'popular'
+    let webtoonClickTimer = null;       // 더블탭 좋아요와 구분하기 위한 단일 클릭 지연 타이머
 
     // 선택된 스타일 (적용 전)
     let pendingStyle = { shape: 'circle', badge: 'star', effect: 'none', gender: 'boy', skin: 'white', hair: 'black', expression: 'smile', bg: 'mint' };
@@ -516,6 +573,26 @@ const initApp = () => {
         if (name === 'shop') refreshShopOwnedState();
     }
 
+    // 패널이 2장 이상인 포스트: 인스타그램 스타일 스와이프 캐러셀 마크업
+    function buildCarouselHTML(urls) {
+        return `
+            <div class="post-carousel" data-index="0" data-total="${urls.length}">
+                <div class="carousel-track">
+                    ${urls.map((url, i) => `
+                        <div class="carousel-slide">
+                            <img src="${url}" class="webtoon-feed-img" alt="panel ${i + 1}">
+                        </div>
+                    `).join('')}
+                </div>
+                <button class="carousel-btn carousel-prev" aria-label="Previous panel">‹</button>
+                <button class="carousel-btn carousel-next" aria-label="Next panel">›</button>
+                <div class="carousel-dots">
+                    ${urls.map((_, i) => `<span class="carousel-dot ${i === 0 ? 'active' : ''}"></span>`).join('')}
+                </div>
+                <div class="carousel-counter">1 / ${urls.length}</div>
+            </div>`;
+    }
+
     // ── 유저 프로필 화면 (작가별 개인 피드) ───────────────
     function buildPostCardHTML(postId) {
         const content = POSTS_CONTENT[postId];
@@ -535,7 +612,9 @@ const initApp = () => {
                 </div>
             </div>
             <div class="post-images-container" data-webtoon-trigger="${postId}">
-                ${(content.imageUrls && content.imageUrls.length > 0)
+                ${(content.imageUrls && content.imageUrls.length > 1)
+                  ? buildCarouselHTML(content.imageUrls)
+                  : (content.imageUrls && content.imageUrls.length > 0)
                   ? `<img src="${content.imageUrls[0]}" class="webtoon-feed-img" />`
                   : `<div class="post-image ${content.imageClass}" ${content.imageUrl ? `style="background-image: url(${content.imageUrl});"` : ''}>
                         <div class="post-image-inner">
@@ -544,11 +623,6 @@ const initApp = () => {
                         </div>
                      </div>`
                 }
-                ${(content.imageUrls && content.imageUrls.length > 1) ? `
-                <div style="position:absolute;bottom:0;left:0;right:0;height:120px;background:linear-gradient(to top,rgba(0,0,0,0.85) 0%,rgba(0,0,0,0.4) 50%,transparent 100%);pointer-events:none;z-index:11;"></div>
-                <div style="position:absolute;bottom:14px;left:0;right:0;display:flex;align-items:center;justify-content:center;gap:8px;z-index:12;pointer-events:none;">
-                    <span style="background:rgba(245,208,0,0.95);color:#1a1a1a;padding:8px 18px;border-radius:20px;font-family:Nunito,sans-serif;font-weight:900;font-size:13px;box-shadow:0 2px 12px rgba(0,0,0,0.4);letter-spacing:0.02em;">📖 Tap to read · ${content.imageUrls.length} panels</span>
-                </div>` : ''}
             </div>
             <p class="post-title" style="margin-top: 1rem;">${content.title}</p>
             <p class="post-desc">${author.handle} · ${content.desc}</p>
@@ -889,6 +963,14 @@ const initApp = () => {
             if (['feed', 'upload', 'shop', 'profile'].includes(target)) showScreen(target);
         }
 
+        // 피드 정렬 탭 (Latest / Popular)
+        const sortTab = e.target.closest('.sort-tab');
+        if (sortTab && sortTab.dataset.sort) {
+            currentFeedSort = sortTab.dataset.sort;
+            document.querySelectorAll('.sort-tab').forEach(b => b.classList.toggle('active', b === sortTab));
+            renderFeedCards();
+            return;
+        }
 
         // 옵션 선택 (프로필)
         const pfOpt = e.target.closest('.pf-option:not(.locked)');
@@ -1046,11 +1128,22 @@ const initApp = () => {
         const postImage = e.target.closest('.post-image[data-user-id]');
         if (postImage) showUserProfile(postImage.dataset.userId);
 
+        // ── 캐러셀 이전/다음 버튼 ────────────────────────────
+        const carouselBtn = e.target.closest('.carousel-prev, .carousel-next');
+        if (carouselBtn) {
+            const carousel = carouselBtn.closest('.post-carousel');
+            if (carousel) moveCarousel(carousel, carouselBtn.classList.contains('carousel-next') ? 1 : -1);
+            return;
+        }
+
         // ── 웹툰 뷰어 열기 ──────────────────────────────────
+        // 더블클릭(더블탭 좋아요)과 구분하기 위해 약간 지연 후 오픈하고,
+        // 그 사이 dblclick이 발생하면 취소한다.
         const webtoonTrigger = e.target.closest('[data-webtoon-trigger]');
         if (webtoonTrigger) {
             const postId = webtoonTrigger.dataset.webtoonTrigger;
-            openWebtoonViewer(postId);
+            clearTimeout(webtoonClickTimer);
+            webtoonClickTimer = setTimeout(() => openWebtoonViewer(postId), 280);
         }
 
         // ── 웹툰 뷰어 Back 버튼 ─────────────────────────────
@@ -2312,6 +2405,16 @@ const initApp = () => {
         });
     }
 
+    // 서버 데이터 최초 로딩
+    // (initApp 내 모든 let/const 선언이 끝난 뒤에 호출해야 TDZ 오류가 나지 않는다 —
+    //  loadBackendData/enterGuestMode가 내부적으로 많은 상태 변수를 참조하기 때문)
+    loadBackendData();
+
+    // 앱 재진입 시 게스트 모드 복원 (이 앱은 로그인 세션을 영속화하지 않으므로,
+    // 게스트로 둘러보던 상태만 새로고침 후에도 유지한다)
+    if (localStorage.getItem('comicclub_guest') === 'true') {
+        enterGuestMode();
+    }
 };
 
 // 페이지 로드 상태에 따라 즉시 실행 또는 이벤트 대기
