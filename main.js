@@ -148,6 +148,7 @@ const initApp = () => {
     });
 
     const startBtn = document.getElementById('start-btn');
+    const guestBtn = document.getElementById('guest-btn');
     const loginModal = document.getElementById('login-modal');
     const closeModal = document.getElementById('close-modal');
     const loginForm = document.getElementById('login-form');
@@ -158,6 +159,11 @@ const initApp = () => {
         loginModal.classList.remove('hidden');
         setTimeout(() => { emailInput.focus(); }, 100);
     });
+
+    // 게스트로 둘러보기
+    if (guestBtn) {
+        guestBtn.addEventListener('click', () => enterGuestMode());
+    }
 
     closeModal.addEventListener('click', () => loginModal.classList.add('hidden'));
 
@@ -440,7 +446,13 @@ const initApp = () => {
                     <button id="feed-empty-upload-btn" style="background:#f5d000;border:2px solid #1a1a1a;border-radius:12px;padding:12px 28px;font-size:15px;font-weight:900;cursor:pointer;font-family:inherit;">✏️ Upload Now</button>
                 `;
                 banner.insertAdjacentElement('afterend', el);
-                document.getElementById('feed-empty-upload-btn').addEventListener('click', () => showScreen('upload'));
+                document.getElementById('feed-empty-upload-btn').addEventListener('click', () => {
+                    if (isGuestMode()) {
+                        showGuestLoginPrompt('Sign in to upload your comics!');
+                        return;
+                    }
+                    showScreen('upload');
+                });
             }
         } else {
             emptyState?.remove();
@@ -451,6 +463,12 @@ const initApp = () => {
 
     // 서버 데이터 최초 로딩
     loadBackendData();
+
+    // 앱 재진입 시 게스트 모드 복원 (이 앱은 로그인 세션을 영속화하지 않으므로,
+    // 게스트로 둘러보던 상태만 새로고침 후에도 유지한다)
+    if (localStorage.getItem('comicclub_guest') === 'true') {
+        enterGuestMode();
+    }
 
     // ── localStorage DB 헬퍼 ─────────────────────────
     function getDB() {
@@ -684,9 +702,15 @@ const initApp = () => {
         myProfileModal.classList.add('hidden');
     }
 
-    // 아바타 버튼 3개 공통 클릭 → 모달 열기
+    // 아바타 버튼 3개 공통 클릭 → 모달 열기 (게스트는 로그인 유도)
     ['feed-avatar-btn', 'upload-avatar-btn', 'shop-avatar-btn'].forEach(id => {
-        document.getElementById(id)?.addEventListener('click', openMyProfileModal);
+        document.getElementById(id)?.addEventListener('click', () => {
+            if (isGuestMode()) {
+                showGuestLoginPrompt('Sign in to view your profile!');
+                return;
+            }
+            openMyProfileModal();
+        });
     });
 
     // 모달 닫기 (X 버튼 & 오버레이 클릭)
@@ -858,6 +882,10 @@ const initApp = () => {
         const navItem = e.target.closest('.nav-item[data-target]');
         if (navItem) {
             const target = navItem.dataset.target;
+            if (isGuestMode() && (target === 'upload' || target === 'profile')) {
+                showGuestLoginPrompt(target === 'upload' ? 'Sign in to upload your comics!' : 'Sign in to view your profile!');
+                return;
+            }
             if (['feed', 'upload', 'shop', 'profile'].includes(target)) showScreen(target);
         }
 
@@ -901,6 +929,10 @@ const initApp = () => {
         // ── 좋아요 버튼 ──────────────────────────────────
         const likeBtn = e.target.closest('.like-btn');
         if (likeBtn) {
+            if (isGuestMode()) {
+                showGuestLoginPrompt('Sign in to like comics! ❤️');
+                return;
+            }
             const postId = likeBtn.dataset.postId;
             const user = loggedInUser || 'Guest';
 
@@ -939,6 +971,10 @@ const initApp = () => {
         // ── 댓글 게시 버튼 ───────────────────────────────
         const submitBtn = e.target.closest('.comment-submit');
         if (submitBtn) {
+            if (isGuestMode()) {
+                showGuestLoginPrompt('Sign in to leave a comment! 💬');
+                return;
+            }
             const postId = submitBtn.dataset.postId;
             const input = document.querySelector(`.comment-input[data-post-id="${postId}"]`);
             const text = input.value.trim();
@@ -1101,6 +1137,110 @@ const initApp = () => {
         pendingStyle = { shape: 'circle', badge: 'star', effect: 'none', gender: 'boy', skin: 'white', hair: 'black' };
         appliedStyle = { shape: 'circle', badge: 'star', effect: 'none', gender: 'boy', skin: 'white', hair: 'black' };
         updateAllAvatarBtns('?', '#ccc');
+        exitGuestMode();
+    }
+
+    // ── 게스트 모드 ──────────────────────────────────────────
+    // 로그인 없이 Feed / Shop 만 둘러보는 모드. Upload / Profile / 좋아요 / 댓글은 차단.
+    function isGuestMode() {
+        return loggedInUser === 'Guest' && localStorage.getItem('comicclub_guest') === 'true';
+    }
+
+    function setGuestNavLock(locked) {
+        document.querySelectorAll('.nav-item[data-target="upload"], .nav-item[data-target="profile"]').forEach(item => {
+            const textNode = item.firstChild;
+            if (!textNode || textNode.nodeType !== Node.TEXT_NODE) return;
+            if (locked) {
+                textNode.textContent = '🔒';
+            } else {
+                textNode.textContent = item.dataset.target === 'upload' ? '⬆' : '👤';
+            }
+        });
+    }
+
+    function showGuestBanner() {
+        const feedHeader = document.querySelector('#feed-screen .feed-header');
+        if (!feedHeader || document.getElementById('guest-banner')) return;
+
+        const banner = document.createElement('div');
+        banner.id = 'guest-banner';
+        banner.style.cssText = 'background:#fff3cd;border-bottom:1px solid #f5d000;padding:8px 16px;font-size:12px;font-weight:700;color:#856404;display:flex;align-items:center;justify-content:space-between;font-family:Nunito,sans-serif;';
+        banner.innerHTML = `
+            <span>👀 Browsing as Guest</span>
+            <button id="guest-banner-signin" style="background:#1a1a1a;color:#fff;border:none;border-radius:8px;padding:4px 12px;font-size:11px;font-weight:800;cursor:pointer;font-family:inherit;">Sign In</button>
+        `;
+        feedHeader.insertAdjacentElement('afterend', banner);
+        document.getElementById('guest-banner-signin').addEventListener('click', () => {
+            toggleAuthMode(false);
+            loginModal.classList.remove('hidden');
+        });
+    }
+
+    function removeGuestBanner() {
+        document.getElementById('guest-banner')?.remove();
+    }
+
+    function setGuestAvatarIcons() {
+        ['feed-avatar-btn', 'upload-avatar-btn', 'shop-avatar-btn'].forEach(id => {
+            const btn = document.getElementById(id);
+            if (!btn) return;
+            btn.style.backgroundImage = 'none';
+            btn.style.background = '#e0e0e0';
+            btn.style.borderColor = '#ccc';
+            btn.textContent = '👤';
+        });
+    }
+
+    function enterGuestMode() {
+        localStorage.setItem('comicclub_guest', 'true');
+        loggedInUser = 'Guest';
+
+        loginModal.classList.add('hidden');
+        const heroSection = document.querySelector('main.hero-section');
+        if (heroSection) heroSection.style.display = 'none';
+
+        setGuestAvatarIcons();
+        setGuestNavLock(true);
+        showScreen('feed');
+        showGuestBanner();
+    }
+
+    function exitGuestMode() {
+        localStorage.removeItem('comicclub_guest');
+        removeGuestBanner();
+        setGuestNavLock(false);
+    }
+
+    function showGuestLoginPrompt(message) {
+        document.getElementById('guest-prompt')?.remove();
+
+        const overlay = document.createElement('div');
+        overlay.id = 'guest-prompt';
+        overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:320;display:flex;align-items:center;justify-content:center;padding:20px;font-family:Nunito,sans-serif;';
+        overlay.innerHTML = `
+            <div style="background:#fff;border-radius:20px;padding:32px 28px;width:100%;max-width:360px;text-align:center;">
+                <div style="font-size:40px;margin-bottom:12px;">🔐</div>
+                <h3 style="font-size:20px;font-weight:900;margin-bottom:8px;">Login Required</h3>
+                <p style="font-size:14px;color:#888;margin-bottom:24px;">${message || 'Sign in to use this feature.'}</p>
+                <button id="guest-prompt-login" style="width:100%;background:#1a1a1a;color:#fff;border:none;border-radius:12px;padding:14px;font-size:15px;font-weight:800;cursor:pointer;font-family:inherit;margin-bottom:10px;">Login</button>
+                <button id="guest-prompt-signup" style="width:100%;background:#f5d000;border:2px solid #1a1a1a;border-radius:12px;padding:12px;font-size:15px;font-weight:800;cursor:pointer;font-family:inherit;margin-bottom:10px;">Sign Up</button>
+                <button id="guest-prompt-dismiss" style="background:none;border:none;color:#aaa;cursor:pointer;font-size:14px;font-family:inherit;">Continue as Guest</button>
+            </div>
+        `;
+        document.body.appendChild(overlay);
+
+        document.getElementById('guest-prompt-login').addEventListener('click', () => {
+            overlay.remove();
+            toggleAuthMode(false);
+            loginModal.classList.remove('hidden');
+        });
+        document.getElementById('guest-prompt-signup').addEventListener('click', () => {
+            overlay.remove();
+            toggleAuthMode(true);
+            loginModal.classList.remove('hidden');
+        });
+        document.getElementById('guest-prompt-dismiss').addEventListener('click', () => overlay.remove());
+        overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
     }
 
     // ── 로그인 & 회원가입 ────────────────────────────────────────
@@ -1201,6 +1341,7 @@ const initApp = () => {
             const data = await res.json();
 
             if (data.success) {
+                exitGuestMode();
                 loginModal.classList.add('hidden');
                 loginForm.reset();
                 loggedInUser = data.user.id; // Fix: Use ID instead of name for data mapping
@@ -1241,6 +1382,7 @@ const initApp = () => {
             const idLower = id.toLowerCase();
             const localUser = USERS_DB[idLower];
             if (localUser && localUser.pwd === pwd) {
+                exitGuestMode();
                 loginModal.classList.add('hidden');
                 loginForm.reset();
                 loggedInUser = idLower;
@@ -2008,6 +2150,10 @@ const initApp = () => {
         if (e.key !== 'Enter') return;
         const input = e.target.closest('.comment-input');
         if (!input) return;
+        if (isGuestMode()) {
+            showGuestLoginPrompt('Sign in to leave a comment! 💬');
+            return;
+        }
         const postId = input.dataset.postId;
         const text = input.value.trim();
         if (!text) return;

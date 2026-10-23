@@ -136,6 +136,33 @@ body {
     box-shadow: 2px 2px 0px #222;
 }
 
+.guest-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    background: transparent;
+    color: #555;
+    font-family: 'Outfit', sans-serif;
+    font-size: 1rem;
+    font-weight: 700;
+    padding: 0.8rem 2.2rem;
+    border: 2px solid #222;
+    border-radius: 12px;
+    cursor: pointer;
+    margin-top: 1rem;
+    transition: all 0.2s ease;
+}
+
+.guest-btn:hover {
+    background: rgba(0, 0, 0, 0.05);
+    transform: translateY(-1px);
+}
+
+.guest-btn:active {
+    transform: translateY(1px);
+}
+
 .footer-icons {
     display: flex;
     align-items: center;
@@ -2113,6 +2140,11 @@ body {
     .start-btn {
         font-size: 1.5rem;
         padding: 1rem 3rem;
+    }
+
+    .guest-btn {
+        font-size: 0.9rem;
+        padding: 0.7rem 1.8rem;
     }
 }
 

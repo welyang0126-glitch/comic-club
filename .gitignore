@@ -10,3 +10,6 @@ Thumbs.db
 .idea/
 node_modules/
 
+
+# 로컬 파일 기반 DB fallback (DATABASE_URL 없을 때 생성됨)
+data/
