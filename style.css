@@ -584,6 +584,8 @@ body {
     overflow-x: auto;
     background: #fff;
     border-bottom: 1px solid #eee;
+    max-width: 600px;
+    margin: 0 auto;
 }
 
 .stories-row::-webkit-scrollbar {
@@ -620,9 +622,11 @@ body {
 /* Feed Post */
 .feed-post {
     background: #fff;
-    margin: 0.8rem 1rem;
-    border-radius: 16px;
+    max-width: 600px;
+    margin: 0 auto 12px;
+    border-radius: 12px;
     overflow: hidden;
+    border: 1px solid #efefef;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
 }
 
@@ -658,10 +662,30 @@ body {
 
 .post-image {
     width: 100%;
-    height: 180px;
+    height: 360px;
     display: flex;
     align-items: flex-end;
     padding: 1rem;
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+}
+
+/* 실제 업로드된 이미지(웹툰 패널)를 담는 컨테이너 — 카드당 고정 높이로 잘라서(cover) 표시 */
+.post-images-container {
+    width: 100%;
+    height: 360px;
+    overflow: hidden;
+    position: relative;
+    cursor: pointer;
+}
+
+.webtoon-feed-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+    filter: saturate(1.2) contrast(1.1);
 }
 
 .post-image.neon {
@@ -906,7 +930,8 @@ body {
 
 /* Banner */
 .feed-banner {
-    margin: 0.8rem 1rem 1.2rem;
+    max-width: 600px;
+    margin: 0.8rem auto 1.2rem;
     background: #222;
     border-radius: 16px;
     padding: 1.2rem 1.2rem;
@@ -930,6 +955,22 @@ body {
 .banner-sub {
     font-size: 0.78rem;
     color: #aaa;
+}
+
+/* 모바일: 피드 카드를 화면 끝까지 꽉 채우고, 이미지 높이를 살짝 줄임 */
+@media (max-width: 640px) {
+    .feed-post {
+        max-width: 100%;
+        border-radius: 0;
+        border-left: none;
+        border-right: none;
+        margin-bottom: 8px;
+    }
+
+    .post-image,
+    .post-images-container {
+        height: 300px;
+    }
 }
 
 /* ===== WEBTOON VIEWER SCREEN ===== */

@@ -534,10 +534,10 @@ const initApp = () => {
                     <p class="post-time">${content.time}</p>
                 </div>
             </div>
-            <div class="post-images-container" style="position:relative; overflow:hidden; border-radius:12px; cursor:pointer; max-height:400px;" data-webtoon-trigger="${postId}">
+            <div class="post-images-container" data-webtoon-trigger="${postId}">
                 ${(content.imageUrls && content.imageUrls.length > 0)
-                  ? `<img src="${content.imageUrls[0]}" class="webtoon-feed-img" style="width:100%; display:block; object-fit:cover; max-height:400px; filter:saturate(1.2) contrast(1.1);" />`
-                  : `<div class="post-image ${content.imageClass}" ${content.imageUrl ? `style="background-image: url(${content.imageUrl}); background-size: cover; background-position: center;"` : ''}>
+                  ? `<img src="${content.imageUrls[0]}" class="webtoon-feed-img" />`
+                  : `<div class="post-image ${content.imageClass}" ${content.imageUrl ? `style="background-image: url(${content.imageUrl});"` : ''}>
                         <div class="post-image-inner">
                             <p class="comic-label">${content.label || ''}</p>
                             <p class="comic-scene">${content.scene || ''}</p>
