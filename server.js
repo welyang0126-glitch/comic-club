@@ -3,12 +3,34 @@ const cors = require('cors');
 const fs = require('fs');
 const path = require('path');
 const { Pool } = require('pg');
+const bcrypt = require('bcryptjs');
 
 const app = express();
 app.use(cors());
 app.use(express.json({ limit: '50mb' }));
 
 const PORT = process.env.PORT || 8080;
+
+// ── 비밀번호 해싱 ─────────────────────────────────────────────
+// 예전 평문 비밀번호는 로그인 성공 시 그 자리에서 bcrypt 해시로 교체한다 (재가입 불필요)
+const BCRYPT_ROUNDS = 10;
+const isHashed = v => typeof v === 'string' && /^\$2[aby]\$\d{2}\$/.test(v);
+const hashPassword = pwd => bcrypt.hash(String(pwd), BCRYPT_ROUNDS);
+
+// 응답으로 내보내는 유저 객체에서 비밀번호 필드 제거
+function publicUser(user) {
+    if (!user) return user;
+    const { pwd, password, ...rest } = user;
+    return rest;
+}
+
+// 검증 결과: { ok, upgradedHash } — upgradedHash가 있으면 호출부에서 저장
+async function verifyPassword(user, password) {
+    if (!user || typeof user.pwd !== 'string' || typeof password !== 'string') return { ok: false };
+    if (isHashed(user.pwd)) return { ok: await bcrypt.compare(password, user.pwd) };
+    if (user.pwd !== password) return { ok: false };
+    return { ok: true, upgradedHash: await hashPassword(password) };
+}
 
 // Railway 등에서 제공되는 Postgres 접속 URL
 const dbUrl = process.env.DATABASE_URL;
@@ -50,7 +72,7 @@ async function initDB() {
         const check = await pool.query("SELECT * FROM users WHERE id = 'kevin'");
         if (check.rows.length === 0) {
             const defaultUser = {
-                id: 'kevin', pwd: 'test', name: 'Kevin', handle: '@Kevin',
+                id: 'kevin', pwd: await hashPassword('test'), name: 'Kevin', handle: '@Kevin',
                 color: '#f4c542', initial: 'K', bio: 'Admin · Comic Club founder ⚡',
                 followers: 530, hearts: 108, items: [], postIds: []
             };
@@ -101,29 +123,48 @@ let localPosts = readLocalJSON(path.join(DATA_DIR, 'posts.json'), {});
 app.get('/health', (req, res) => res.json({ status: 'ok', db: !!pool }));
 
 app.post('/api/auth/login', async (req, res) => {
-    const { id, password } = req.body;
-    const key = id.toLowerCase();
-
-    if (pool) {
-        const result = await pool.query('SELECT data FROM users WHERE id = $1', [key]);
-        if (result.rows.length > 0) {
-            const user = result.rows[0].data;
-            if (user.pwd === password) return res.json({ success: true, user });
+    try {
+        const { id, password } = req.body;
+        if (typeof id !== 'string' || typeof password !== 'string') {
+            return res.json({ success: false, message: 'Invalid credentials' });
         }
-        res.json({ success: false, message: 'Invalid credentials' });
-    } else {
-        const user = localUsers[key];
-        if (user && user.pwd === password) res.json({ success: true, user });
-        else res.json({ success: false, message: 'Invalid credentials' });
+        const key = id.toLowerCase();
+
+        if (pool) {
+            const result = await pool.query('SELECT data FROM users WHERE id = $1', [key]);
+            const user = result.rows.length > 0 ? result.rows[0].data : null;
+            const { ok, upgradedHash } = await verifyPassword(user, password);
+            if (!ok) return res.json({ success: false, message: 'Invalid credentials' });
+            if (upgradedHash) {
+                user.pwd = upgradedHash;
+                await pool.query('UPDATE users SET data = $1 WHERE id = $2', [user, key]);
+            }
+            res.json({ success: true, user: publicUser(user) });
+        } else {
+            const user = localUsers[key];
+            const { ok, upgradedHash } = await verifyPassword(user, password);
+            if (!ok) return res.json({ success: false, message: 'Invalid credentials' });
+            if (upgradedHash) {
+                user.pwd = upgradedHash;
+                saveLocalJSON(path.join(DATA_DIR, 'users.json'), localUsers);
+            }
+            res.json({ success: true, user: publicUser(user) });
+        }
+    } catch (err) {
+        console.error('POST /api/auth/login error:', err);
+        res.status(500).json({ success: false, message: 'Login failed' });
     }
 });
 
 app.post('/api/auth/signup', async (req, res) => {
     const { id, pwd, name } = req.body;
+    if (typeof id !== 'string' || typeof pwd !== 'string' || typeof name !== 'string' || !id || !pwd || !name) {
+        return res.json({ success: false, message: 'Missing fields' });
+    }
     const key = id.toLowerCase();
 
     const newUser = {
-        id, pwd, name,
+        id, pwd: await hashPassword(pwd), name,
         handle: '@' + name,
         color: '#ffcc00',
         initial: name.charAt(0).toUpperCase(),
@@ -138,12 +179,12 @@ app.post('/api/auth/signup', async (req, res) => {
         const check = await pool.query('SELECT id FROM users WHERE id = $1', [key]);
         if (check.rows.length > 0) return res.json({ success: false, message: 'ID already exists' });
         await pool.query('INSERT INTO users (id, data) VALUES ($1, $2)', [key, newUser]);
-        res.json({ success: true, user: newUser });
+        res.json({ success: true, user: publicUser(newUser) });
     } else {
         if (localUsers[key]) return res.json({ success: false, message: 'ID already exists' });
         localUsers[key] = newUser;
         saveLocalJSON(path.join(DATA_DIR, 'users.json'), localUsers);
-        res.json({ success: true, user: newUser });
+        res.json({ success: true, user: publicUser(newUser) });
     }
 });
 
@@ -439,17 +480,19 @@ app.delete('/api/posts/:id', async (req, res) => {
 
 app.post('/api/users/:id/update', async (req, res) => {
     const key = req.params.id.toLowerCase();
+    // 이 엔드포인트로는 비밀번호·id를 바꿀 수 없다 (인증 없는 경로로 계정 탈취 방지)
+    const { pwd, password, id, ...changes } = req.body || {};
     if (pool) {
         const userRes = await pool.query('SELECT data FROM users WHERE id = $1', [key]);
         if (userRes.rows.length === 0) return res.status(404).json({ error: 'User not found' });
-        const updated = { ...userRes.rows[0].data, ...req.body };
+        const updated = { ...userRes.rows[0].data, ...changes };
         await pool.query('UPDATE users SET data = $1 WHERE id = $2', [updated, key]);
-        res.json({ success: true, user: updated });
+        res.json({ success: true, user: publicUser(updated) });
     } else {
         if (!localUsers[key]) return res.status(404).json({ error: 'User not found' });
-        localUsers[key] = { ...localUsers[key], ...req.body };
+        localUsers[key] = { ...localUsers[key], ...changes };
         saveLocalJSON(path.join(DATA_DIR, 'users.json'), localUsers);
-        res.json({ success: true, user: localUsers[key] });
+        res.json({ success: true, user: publicUser(localUsers[key]) });
     }
 });
 
