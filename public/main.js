@@ -23,6 +23,31 @@ const initApp = () => {
         }
     }
 
+    // ── 인증 토큰 ─────────────────────────────────────────
+    // 로그인·회원가입 시 서버가 발급한 토큰을 localStorage에 보관하고, 쓰기 요청에 Bearer 헤더로 첨부한다.
+    const AUTH_TOKEN_KEY = 'comicclub_token';
+    function getAuthToken() {
+        try { return localStorage.getItem(AUTH_TOKEN_KEY); } catch { return null; }
+    }
+    function setAuthToken(token) {
+        try {
+            if (token) localStorage.setItem(AUTH_TOKEN_KEY, token);
+            else localStorage.removeItem(AUTH_TOKEN_KEY);
+        } catch {}
+    }
+
+    // 401 응답 시 호출 — 실제 처리는 로그인 UI가 준비된 뒤 아래에서 지정
+    let handleAuthExpired = () => {};
+
+    async function authFetch(url, options = {}, timeout) {
+        const headers = { ...(options.headers || {}) };
+        const token = getAuthToken();
+        if (token) headers['Authorization'] = `Bearer ${token}`;
+        const res = await fetchWithTimeout(url, { ...options, headers }, timeout);
+        if (res.status === 401) handleAuthExpired();
+        return res;
+    }
+
     // ── XSS 방지: innerHTML에 들어가는 사용자 입력은 반드시 이 함수를 거친다 ──
     function escHtml(str) {
         if (str === null || str === undefined) return '';
@@ -549,11 +574,16 @@ const initApp = () => {
         else POSTS_CONTENT[postId].likes[uid] = true;
 
         try {
-            await fetchWithTimeout(`/api/posts/${postId}/like`, {
+            const res = await authFetch(`/api/posts/${postId}/like`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ uid })
+                headers: { 'Content-Type': 'application/json' }
             });
+            // 인증 실패 등으로 서버 반영이 안 됐으면 낙관적 반영 되돌림
+            if (!res.ok) {
+                if (currentlyLiked) POSTS_CONTENT[postId].likes[uid] = true;
+                else delete POSTS_CONTENT[postId].likes[uid];
+                return currentlyLiked;
+            }
         } catch(e) { console.error('좋아요 실패', e); }
 
         return !currentlyLiked;
@@ -567,10 +597,10 @@ const initApp = () => {
     async function addComment(postId, currentUser, text) {
         if (!POSTS_CONTENT[postId]) return;
         try {
-            const res = await fetchWithTimeout(`/api/posts/${postId}/comments`, {
+            const res = await authFetch(`/api/posts/${postId}/comments`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ userId: currentUser, text })
+                body: JSON.stringify({ text })
             });
             const data = await res.json();
             if (data.success) {
@@ -1222,7 +1252,7 @@ const initApp = () => {
             // 로그인 상태라면 Railway 백엔드로 저장
             if (loggedInUser !== 'Guest') {
                 const userKey = loggedInUser.toLowerCase();
-                fetchWithTimeout(`/api/users/${userKey}/update`, {
+                authFetch(`/api/users/${userKey}/update`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ avatar: appliedStyle })
@@ -1263,8 +1293,8 @@ const initApp = () => {
                 window.spawnHeartParticles(likeBtn);
             }
 
-            // localStorage 동기화
-            toggleLike(postId, user);
+            // 서버 동기화 — 실패(401 등) 시 toggleLike가 되돌린 상태로 다시 그림
+            toggleLike(postId, user).then(() => renderFeedPost(postId));
         }
 
         // ── 댓글 토글 버튼 ───────────────────────────────
@@ -1325,7 +1355,7 @@ const initApp = () => {
             }
 
             // 백엔드가 있을 경우 동기화 (실패해도 무시)
-            fetchWithTimeout(`/api/posts/${postId}?userId=${loggedInUser}`, { method: 'DELETE' }).catch(() => {});
+            authFetch(`/api/posts/${encodeURIComponent(postId)}`, { method: 'DELETE' }).catch(() => {});
         }
 
         // ── 공유 버튼 클릭 ───────────────────────────────
@@ -1408,7 +1438,7 @@ const initApp = () => {
 
             // 서버에 하트 잔액 및 구매 목록 저장
             if (loggedInUser !== 'Guest') {
-                fetchWithTimeout(`/api/users/${loggedInUser.toLowerCase()}/update`, {
+                authFetch(`/api/users/${loggedInUser.toLowerCase()}/update`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ hearts, items: [...purchasedItems] })
@@ -1445,6 +1475,12 @@ const initApp = () => {
     }
 
     function doLogout() {
+        // 서버에서 토큰 폐기 (실패해도 로컬 로그아웃은 진행)
+        const token = getAuthToken();
+        if (token) {
+            fetchWithTimeout('/api/auth/logout', { method: 'POST', headers: { 'Authorization': `Bearer ${token}` } }).catch(() => {});
+        }
+        setAuthToken(null);
         closeMyProfileModal();
         allScreens.forEach(id => document.getElementById(id).classList.add('hidden'));
         loginModal.classList.remove('hidden');
@@ -1459,6 +1495,18 @@ const initApp = () => {
         updateAllAvatarBtns('?', '#ccc');
         exitGuestMode();
     }
+
+    // 토큰이 없거나 만료된 상태에서 쓰기 요청이 401을 받으면 로그인 화면으로 보낸다
+    // (토큰 도입 전에 로그인한 유저 포함). 게스트 모드는 쓰기 요청 전에 이미 막혀 있다.
+    let authExpiredHandling = false;
+    handleAuthExpired = () => {
+        setAuthToken(null);
+        if (authExpiredHandling || isGuestMode()) return;
+        authExpiredHandling = true;
+        doLogout();
+        showToast('Please sign in again.');
+        setTimeout(() => { authExpiredHandling = false; }, 1000);
+    };
 
     // ── 비밀번호 변경 (프로필 하단) ─────────────────────────
     const changePwdForm = document.getElementById('change-pwd-form');
@@ -1480,11 +1528,12 @@ const initApp = () => {
 
             btn.disabled = true;
             try {
-                const res = await fetchWithTimeout('/api/auth/change-password', {
+                const res = await authFetch('/api/auth/change-password', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ id: loggedInUser, currentPassword, newPassword })
+                    body: JSON.stringify({ currentPassword, newPassword })
                 });
+                if (res.status === 401) return; // handleAuthExpired가 로그인 화면으로 보냄
                 const data = await res.json();
                 if (data.success) {
                     changePwdForm.reset();
@@ -1699,6 +1748,7 @@ const initApp = () => {
                 loginModal.classList.add('hidden');
                 loginForm.reset();
                 loggedInUser = data.user.id; // Fix: Use ID instead of name for data mapping
+                setAuthToken(data.token);
 
                 // 서버에서 받은 hearts / items 복원
                 if (typeof data.user.hearts === 'number') hearts = data.user.hearts;
@@ -2442,13 +2492,19 @@ const initApp = () => {
             POSTS_CONTENT[newPostId] = newPost;
             USERS_DATA[ukey].postIds.unshift(newPostId);
 
-            // 2) 백엔드 저장 (실패 시 localStorage fallback)
+            // 2) 백엔드 저장 (실패 시 localStorage fallback, 인증 실패 시 게시 취소)
             try {
-                const res = await fetchWithTimeout('/api/posts', {
+                const res = await authFetch('/api/posts', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(newPost)
                 }, 20000);
+                if (res.status === 401) {
+                    // handleAuthExpired가 로그인 화면으로 보낸다 — 로컬 반영도 되돌림
+                    delete POSTS_CONTENT[newPostId];
+                    if (USERS_DATA[ukey]) USERS_DATA[ukey].postIds = USERS_DATA[ukey].postIds.filter(id => id !== newPostId);
+                    return;
+                }
                 const data = await res.json();
                 if (!data.success) throw new Error('Backend save failed');
             } catch(e) {

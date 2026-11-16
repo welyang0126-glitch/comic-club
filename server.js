@@ -4,6 +4,7 @@ const fs = require('fs');
 const path = require('path');
 const { Pool } = require('pg');
 const bcrypt = require('bcryptjs');
+const crypto = require('crypto');
 const images = require('./lib/images');
 
 const app = express();
@@ -98,6 +99,18 @@ async function initDB() {
             await pool.query("INSERT INTO posts (id, data) VALUES ($1, $2)", ['post-2', post2]);
         }
 
+        // 로그인 세션 (토큰은 SHA-256 해시만 저장)
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS sessions (
+                token_hash CHAR(64) PRIMARY KEY,
+                user_id VARCHAR(255) NOT NULL,
+                expires_at TIMESTAMPTZ NOT NULL,
+                created_at TIMESTAMPTZ DEFAULT NOW()
+            );
+        `);
+        await pool.query('CREATE INDEX IF NOT EXISTS sessions_user_id_idx ON sessions (user_id)');
+        await pool.query('DELETE FROM sessions WHERE expires_at <= NOW()');
+
         // 포스트 이미지 테이블 생성 + 기존 base64 이미지 이전 (백업 테이블 생성 후 진행, 재실행 안전)
         await images.migratePgImages(pool);
     } catch (err) {
@@ -137,6 +150,80 @@ const IMAGES_DIR = path.join(DATA_DIR, 'images');
     }
 })().catch(err => console.error('[images] local migration failed', err));
 
+// ── 토큰 인증 ─────────────────────────────────────────────────
+// 로그인·회원가입 시 랜덤 토큰을 발급하고 DB에는 SHA-256 해시만 저장한다 (만료 30일).
+// 쓰기 API는 requireAuth를 거치며, 요청 body의 userId 대신 토큰에서 꺼낸 req.userId만 신뢰한다.
+const ADMIN_ID = 'kevin';
+const SESSION_TTL_DAYS = 30;
+const hashToken = token => crypto.createHash('sha256').update(token).digest('hex');
+const SESSIONS_FILE = path.join(DATA_DIR, 'sessions.json');
+let localSessions = readLocalJSON(SESSIONS_FILE, {});
+
+async function createSession(userId) {
+    const token = crypto.randomBytes(32).toString('hex');
+    const tokenHash = hashToken(token);
+    if (pool) {
+        await pool.query(
+            `INSERT INTO sessions (token_hash, user_id, expires_at) VALUES ($1, $2, NOW() + INTERVAL '${SESSION_TTL_DAYS} days')`,
+            [tokenHash, userId]
+        );
+    } else {
+        localSessions[tokenHash] = { userId, expiresAt: Date.now() + SESSION_TTL_DAYS * 86400000 };
+        saveLocalJSON(SESSIONS_FILE, localSessions);
+    }
+    return token;
+}
+
+async function findSessionUserId(tokenHash) {
+    if (pool) {
+        const r = await pool.query('SELECT user_id FROM sessions WHERE token_hash = $1 AND expires_at > NOW()', [tokenHash]);
+        return r.rows[0]?.user_id || null;
+    }
+    const s = localSessions[tokenHash];
+    if (!s) return null;
+    if (s.expiresAt <= Date.now()) {
+        delete localSessions[tokenHash];
+        saveLocalJSON(SESSIONS_FILE, localSessions);
+        return null;
+    }
+    return s.userId;
+}
+
+// exceptHash를 주면 그 세션만 남기고 해당 유저의 나머지 세션 폐기
+async function deleteSessions({ tokenHash, userId, exceptHash }) {
+    if (pool) {
+        if (tokenHash) await pool.query('DELETE FROM sessions WHERE token_hash = $1', [tokenHash]);
+        if (userId) await pool.query('DELETE FROM sessions WHERE user_id = $1 AND token_hash <> $2', [userId, exceptHash || '']);
+        return;
+    }
+    for (const [h, s] of Object.entries(localSessions)) {
+        if (h === tokenHash || (userId && s.userId === userId && h !== exceptHash)) delete localSessions[h];
+    }
+    saveLocalJSON(SESSIONS_FILE, localSessions);
+}
+
+async function loadUser(key) {
+    if (pool) return (await pool.query('SELECT data FROM users WHERE id = $1', [key])).rows[0]?.data || null;
+    return localUsers[key] || null;
+}
+
+async function requireAuth(req, res, next) {
+    try {
+        const m = /^Bearer\s+([a-f0-9]{64})$/i.exec(req.get('Authorization') || '');
+        const tokenHash = m ? hashToken(m[1].toLowerCase()) : null;
+        const userId = tokenHash ? await findSessionUserId(tokenHash) : null;
+        const user = userId ? await loadUser(userId) : null;
+        if (!user) return res.status(401).json({ success: false, error: 'auth_required', message: 'Please sign in again.' });
+        req.userId = userId;      // 소문자 키
+        req.user = user;
+        req.tokenHash = tokenHash;
+        next();
+    } catch (err) {
+        console.error('requireAuth error:', err);
+        res.status(500).json({ success: false, message: 'Auth check failed' });
+    }
+}
+
 // ── API 엔드포인트 ────────────────────────────────────────────
 
 // Railway health check — 이 엔드포인트가 있어야 Railway가 서버 상태를 올바르게 감지함
@@ -159,7 +246,7 @@ app.post('/api/auth/login', async (req, res) => {
                 user.pwd = upgradedHash;
                 await pool.query('UPDATE users SET data = $1 WHERE id = $2', [user, key]);
             }
-            res.json({ success: true, user: publicUser(user) });
+            res.json({ success: true, user: publicUser(user), token: await createSession(key) });
         } else {
             const user = localUsers[key];
             const { ok, upgradedHash } = await verifyPassword(user, password);
@@ -168,7 +255,7 @@ app.post('/api/auth/login', async (req, res) => {
                 user.pwd = upgradedHash;
                 saveLocalJSON(path.join(DATA_DIR, 'users.json'), localUsers);
             }
-            res.json({ success: true, user: publicUser(user) });
+            res.json({ success: true, user: publicUser(user), token: await createSession(key) });
         }
     } catch (err) {
         console.error('POST /api/auth/login error:', err);
@@ -199,36 +286,47 @@ app.post('/api/auth/signup', async (req, res) => {
         const check = await pool.query('SELECT id FROM users WHERE id = $1', [key]);
         if (check.rows.length > 0) return res.json({ success: false, message: 'ID already exists' });
         await pool.query('INSERT INTO users (id, data) VALUES ($1, $2)', [key, newUser]);
-        res.json({ success: true, user: publicUser(newUser) });
+        res.json({ success: true, user: publicUser(newUser), token: await createSession(key) });
     } else {
         if (localUsers[key]) return res.json({ success: false, message: 'ID already exists' });
         localUsers[key] = newUser;
         saveLocalJSON(path.join(DATA_DIR, 'users.json'), localUsers);
-        res.json({ success: true, user: publicUser(newUser) });
+        res.json({ success: true, user: publicUser(newUser), token: await createSession(key) });
     }
 });
 
-// 비밀번호 변경 — 현재 비밀번호를 bcrypt로 검증한 뒤 새 해시 저장
-const MIN_PASSWORD_LENGTH = 6;
-app.post('/api/auth/change-password', async (req, res) => {
+// 로그아웃 — 현재 토큰 폐기
+app.post('/api/auth/logout', requireAuth, async (req, res) => {
     try {
-        const { id, currentPassword, newPassword } = req.body || {};
-        if (typeof id !== 'string' || typeof currentPassword !== 'string' || typeof newPassword !== 'string') {
+        await deleteSessions({ tokenHash: req.tokenHash });
+        res.json({ success: true });
+    } catch (err) {
+        console.error('POST /api/auth/logout error:', err);
+        res.status(500).json({ success: false });
+    }
+});
+
+// 비밀번호 변경 — 토큰의 유저 기준, 현재 비밀번호를 bcrypt로 검증한 뒤 새 해시 저장
+// 변경 후 다른 기기의 세션은 모두 폐기 (현재 세션만 유지)
+const MIN_PASSWORD_LENGTH = 6;
+app.post('/api/auth/change-password', requireAuth, async (req, res) => {
+    try {
+        const { currentPassword, newPassword } = req.body || {};
+        if (typeof currentPassword !== 'string' || typeof newPassword !== 'string') {
             return res.status(400).json({ success: false, message: 'Missing fields' });
         }
         if (newPassword.length < MIN_PASSWORD_LENGTH) {
             return res.status(400).json({ success: false, message: `New password must be at least ${MIN_PASSWORD_LENGTH} characters.` });
         }
-        const key = id.toLowerCase();
-        const user = pool
-            ? (await pool.query('SELECT data FROM users WHERE id = $1', [key])).rows[0]?.data
-            : localUsers[key];
+        const key = req.userId;
+        const user = req.user;
         const { ok } = await verifyPassword(user, currentPassword);
         if (!ok) return res.status(403).json({ success: false, message: 'Current password is incorrect.' });
 
         user.pwd = await hashPassword(newPassword);
         if (pool) await pool.query('UPDATE users SET data = $1 WHERE id = $2', [user, key]);
         else saveLocalJSON(path.join(DATA_DIR, 'users.json'), localUsers);
+        await deleteSessions({ userId: key, exceptHash: req.tokenHash });
         res.json({ success: true });
     } catch (err) {
         console.error('POST /api/auth/change-password error:', err);
@@ -348,26 +446,20 @@ app.get('/api/posts', async (req, res) => {
     }
 });
 
-app.post('/api/posts', async (req, res) => {
+app.post('/api/posts', requireAuth, async (req, res) => {
     try {
-        const body = req.body;
-        const authorKey = (body.authorId || body.uid || '').toLowerCase();
-
-        // 게스트(미가입) 작성자 차단 — 클라이언트 UI는 이미 막고 있지만, API를 직접
-        // 호출하는 경우를 대비한 서버 측 방어
-        if (!authorKey || authorKey === 'guest' || authorKey === '@guest') {
-            return res.status(403).json({ success: false, error: 'Guests cannot post. Please sign in.' });
-        }
-        if (pool) {
-            const authorCheck = await pool.query('SELECT id FROM users WHERE id = $1', [authorKey]);
-            if (authorCheck.rows.length === 0) {
-                return res.status(403).json({ success: false, error: 'User not found' });
-            }
-        } else if (!localUsers[authorKey]) {
-            return res.status(403).json({ success: false, error: 'User not found' });
-        }
+        const body = req.body || {};
+        // 작성자는 토큰의 유저 — body.authorId / uid는 무시 (게스트는 토큰이 없어 requireAuth에서 차단)
+        const authorKey = req.userId;
 
         const newPostId = body.id || ('post-' + Date.now());
+        // 같은 id로 남의 포스트를 덮어쓰는 것 방지
+        const existing = pool
+            ? (await pool.query('SELECT data FROM posts WHERE id = $1', [newPostId])).rows[0]?.data
+            : localPosts[newPostId];
+        if (existing && (existing.authorId || '').toLowerCase() !== authorKey) {
+            return res.status(403).json({ success: false, error: 'Not your post' });
+        }
         const postData = {
             ...body,
             id: newPostId,
@@ -429,9 +521,10 @@ app.get('/api/posts/:id/images/:n', async (req, res) => {
     }
 });
 
-app.post('/api/posts/:id/like', async (req, res) => {
+app.post('/api/posts/:id/like', requireAuth, async (req, res) => {
     const postId = req.params.id;
-    const userId = req.body.uid || req.body.userId;
+    // likes 키는 기존 데이터와 같은 형식(가입 시 입력한 대소문자 그대로의 id) — body의 uid는 무시
+    const userId = req.user.id || req.userId;
 
     if (pool) {
         const postRes = await pool.query('SELECT data FROM posts WHERE id = $1', [postId]);
@@ -474,26 +567,29 @@ app.post('/api/posts/:id/like', async (req, res) => {
     }
 });
 
-app.post('/api/posts/:id/comments', async (req, res) => {
+app.post('/api/posts/:id/comments', requireAuth, async (req, res) => {
     const postId = req.params.id;
-    const { userId, text } = req.body;
-    const userKey = userId.toLowerCase();
+    // 작성자는 토큰의 유저 — body의 userId는 무시
+    const { text } = req.body || {};
+    if (typeof text !== 'string' || !text.trim()) {
+        return res.status(400).json({ success: false, error: 'Empty comment' });
+    }
+    const userId = req.userId;
+    const user = req.user;
 
-    let user, post;
+    let post;
     if (pool) {
         const postRes = await pool.query('SELECT data FROM posts WHERE id = $1', [postId]);
         if (postRes.rows.length === 0) return res.status(404).json({ error: 'Post not found' });
         post = postRes.rows[0].data;
-        const userRes = await pool.query('SELECT data FROM users WHERE id = $1', [userKey]);
-        user = userRes.rows.length > 0 ? userRes.rows[0].data : null;
     } else {
         post = localPosts[postId];
         if (!post) return res.status(404).json({ error: 'Post not found' });
-        user = localUsers[userKey];
     }
+    if (!Array.isArray(post.comments)) post.comments = [];
 
-    const handle = user ? user.handle : '@' + userId;
-    const color = user ? user.color : '#f4c542';
+    const handle = user.handle || '@' + userId;
+    const color = user.color || '#f4c542';
 
     post.comments.push({
         id: 'u_' + Date.now(),
@@ -501,7 +597,7 @@ app.post('/api/posts/:id/comments', async (req, res) => {
         text,
         time: 'Just now',
         color: color,
-        avatar: user ? user.avatar : null
+        avatar: user.avatar || null
     });
 
     if (pool) {
@@ -512,47 +608,54 @@ app.post('/api/posts/:id/comments', async (req, res) => {
     res.json({ success: true, comments: post.comments });
 });
 
-app.delete('/api/posts/:id', async (req, res) => {
+// 삭제 — 본인 글만, 관리자(kevin)는 전체 가능. query의 userId는 무시하고 토큰 기준
+app.delete('/api/posts/:id', requireAuth, async (req, res) => {
     const postId = req.params.id;
-    const userId = (req.query.userId || '').toLowerCase();
+    const userId = req.userId;
+    const canDelete = post => (post.authorId || '').toLowerCase() === userId || userId === ADMIN_ID;
 
     if (pool) {
         const postRes = await pool.query('SELECT data FROM posts WHERE id = $1', [postId]);
         if (postRes.rows.length === 0) return res.status(404).json({ error: 'Post not found' });
 
         const post = postRes.rows[0].data;
-        if (post.authorId.toLowerCase() !== userId) return res.status(403).json({ error: 'Unauthorized to delete this post' });
+        if (!canDelete(post)) return res.status(403).json({ error: 'Unauthorized to delete this post' });
 
         await pool.query('DELETE FROM posts WHERE id = $1', [postId]);
         await images.pgDeleteImages(pool, postId);
 
-        const userRes = await pool.query('SELECT data FROM users WHERE id = $1', [userId]);
+        // 관리자가 지운 경우에도 작성자의 postIds에서 제거
+        const authorKey = (post.authorId || '').toLowerCase();
+        const userRes = await pool.query('SELECT data FROM users WHERE id = $1', [authorKey]);
         if (userRes.rows.length > 0) {
             const userData = userRes.rows[0].data;
-            userData.postIds = userData.postIds.filter(id => id !== postId);
-            await pool.query('UPDATE users SET data = $1 WHERE id = $2', [userData, userId]);
+            userData.postIds = (userData.postIds || []).filter(id => id !== postId);
+            await pool.query('UPDATE users SET data = $1 WHERE id = $2', [userData, authorKey]);
         }
         res.json({ success: true });
     } else {
         const post = localPosts[postId];
         if (!post) return res.status(404).json({ error: 'Post not found' });
-        if (post.authorId.toLowerCase() !== userId) return res.status(403).json({ error: 'Unauthorized' });
+        if (!canDelete(post)) return res.status(403).json({ error: 'Unauthorized' });
 
         delete localPosts[postId];
         saveLocalJSON(path.join(DATA_DIR, 'posts.json'), localPosts);
         images.localDeleteImages(IMAGES_DIR, postId);
 
-        if (localUsers[userId]) {
-            localUsers[userId].postIds = localUsers[userId].postIds.filter(id => id !== postId);
+        const authorKey = (post.authorId || '').toLowerCase();
+        if (localUsers[authorKey]) {
+            localUsers[authorKey].postIds = (localUsers[authorKey].postIds || []).filter(id => id !== postId);
             saveLocalJSON(path.join(DATA_DIR, 'users.json'), localUsers);
         }
         res.json({ success: true });
     }
 });
 
-app.post('/api/users/:id/update', async (req, res) => {
+// 프로필 수정·상점 구매(hearts/items 저장) — 본인 계정만
+app.post('/api/users/:id/update', requireAuth, async (req, res) => {
     const key = req.params.id.toLowerCase();
-    // 이 엔드포인트로는 비밀번호·id를 바꿀 수 없다 (인증 없는 경로로 계정 탈취 방지)
+    if (key !== req.userId) return res.status(403).json({ success: false, error: 'Not your account' });
+    // 이 엔드포인트로는 비밀번호·id를 바꿀 수 없다 (비밀번호는 /api/auth/change-password)
     const { pwd, password, id, ...changes } = req.body || {};
     if (pool) {
         const userRes = await pool.query('SELECT data FROM users WHERE id = $1', [key]);
