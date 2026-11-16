@@ -23,6 +23,31 @@ const initApp = () => {
         }
     }
 
+    // ── XSS 방지: innerHTML에 들어가는 사용자 입력은 반드시 이 함수를 거친다 ──
+    function escHtml(str) {
+        if (str === null || str === undefined) return '';
+        return String(str)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+
+    // ── 상대 시간 표시 ("5m ago") — 파싱 불가한 구형 문자열("1h ago")은 그대로 반환 ──
+    function timeAgo(dateStr) {
+        if (!dateStr) return 'Just now';
+        const date = new Date(dateStr);
+        if (isNaN(date)) return dateStr;
+        const diff = Math.floor((Date.now() - date.getTime()) / 1000);
+
+        if (diff < 60) return 'Just now';
+        if (diff < 3600) return Math.floor(diff / 60) + 'm ago';
+        if (diff < 86400) return Math.floor(diff / 3600) + 'h ago';
+        if (diff < 604800) return Math.floor(diff / 86400) + 'd ago';
+        return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    }
+
     // ── 토스트 알림 ──────────────────────────────────────
     function showToast(msg) {
         let toast = document.getElementById('comic-toast');
@@ -251,11 +276,116 @@ const initApp = () => {
         localStorage.setItem('comicclub_version', DB_VERSION);
     }
 
-    async function loadBackendData() {
+    // ── 피드 페이지네이션 상태 ─────────────────────────
+    // feedPostIds: 피드에 표시되는 포스트 순서(최신순). POSTS_CONTENT에는 프로필 화면 등에서
+    // 불러온 포스트도 섞일 수 있으므로 피드 순서는 별도로 관리한다.
+    const FEED_PAGE_SIZE = 10;
+    let feedPostIds = [];
+    let feedCursor = null;
+    let feedLoading = false;
+    let feedExhausted = false;
+    let feedObserver = null;
+
+    // 응답의 posts 배열을 POSTS_CONTENT에 넣고, 삭제 기록에 없는 새 id 목록을 반환
+    function ingestPosts(posts) {
+        const deleted = getDeletedPosts();
+        const ids = [];
+        posts.forEach(p => {
+            if (!p || !p.id || deleted.has(p.id)) return;
+            POSTS_CONTENT[p.id] = p;
+            ids.push(p.id);
+        });
+        return ids;
+    }
+
+    // Popular 탭: 전체를 불러와 클라이언트에서 정렬 (초기 단계라 데이터가 많지 않음)
+    async function loadAllPosts() {
+        const res = await fetchWithTimeout('/api/posts');
+        const data = await res.json();
+        if (!data.success || !Array.isArray(data.posts)) return;
+        const ids = ingestPosts(data.posts);
+        // 서버에 아직 없는 로컬 포스트는 맨 앞 유지
+        const localOnly = feedPostIds.filter(id => !ids.includes(id) && getLocalPosts().some(p => p.id === id));
+        feedPostIds = [...localOnly, ...ids];
+        feedCursor = null;
+        feedExhausted = true;
+    }
+
+    async function loadMorePosts() {
+        if (feedLoading || feedExhausted || currentFeedSort !== 'latest') return;
+        feedLoading = true;
+        const sentinel = document.getElementById('feed-sentinel');
+        if (sentinel) sentinel.textContent = 'Loading…';
+
         try {
+            const url = `/api/posts?limit=${FEED_PAGE_SIZE}` + (feedCursor ? `&before=${encodeURIComponent(feedCursor)}` : '');
+            const res = await fetchWithTimeout(url);
+            const data = await res.json();
+            if (!data.success || !Array.isArray(data.posts)) return;
+
+            const newIds = ingestPosts(data.posts).filter(id => !feedPostIds.includes(id));
+            feedPostIds.push(...newIds);
+            feedCursor = data.nextCursor || null;
+            if (!feedCursor) feedExhausted = true;
+            appendPostCards(newIds);
+        } catch (e) {
+            console.warn('loadMorePosts failed', e);
+        } finally {
+            feedLoading = false;
+            updateFeedSentinel();
+        }
+    }
+
+    // 기존 카드는 그대로 두고 sentinel 앞에 새 카드만 추가
+    function appendPostCards(postIds) {
+        const sentinel = document.getElementById('feed-sentinel');
+        if (!sentinel || postIds.length === 0) return;
+        const htmls = postIds.map(buildPostCardHTML).filter(Boolean);
+        sentinel.insertAdjacentHTML('beforebegin', htmls.join(''));
+        postIds.forEach(pid => renderFeedPost(pid));
+    }
+
+    // 무한스크롤 — 피드 하단(sentinel)이 보이면 다음 페이지 로드
+    function ensureFeedSentinel() {
+        const feedBody = document.querySelector('.feed-body');
+        if (!feedBody) return null;
+        let sentinel = document.getElementById('feed-sentinel');
+        if (!sentinel) {
+            sentinel = document.createElement('div');
+            sentinel.id = 'feed-sentinel';
+            sentinel.className = 'feed-sentinel';
+        }
+        feedBody.appendChild(sentinel); // 항상 맨 끝에 위치
+        if (!feedObserver && 'IntersectionObserver' in window) {
+            feedObserver = new IntersectionObserver(entries => {
+                if (entries[0].isIntersecting) loadMorePosts();
+            }, { root: feedBody, rootMargin: '300px 0px' });
+            feedObserver.observe(sentinel);
+        }
+        return sentinel;
+    }
+
+    function updateFeedSentinel() {
+        const sentinel = document.getElementById('feed-sentinel');
+        if (!sentinel) return;
+        const active = currentFeedSort === 'latest' && !feedExhausted;
+        sentinel.style.display = active ? '' : 'none';
+        sentinel.textContent = '';
+        // 화면이 짧아 sentinel이 계속 보이는 경우 observer가 다시 발화하지 않으므로 재관찰
+        if (active && feedObserver) {
+            feedObserver.unobserve(sentinel);
+            feedObserver.observe(sentinel);
+        }
+    }
+
+    async function loadBackendData() {
+        feedCursor = null;
+        feedExhausted = false;
+        try {
+            const postsUrl = currentFeedSort === 'popular' ? '/api/posts' : `/api/posts?limit=${FEED_PAGE_SIZE}`;
             const [usersRes, postsRes] = await Promise.all([
                 fetchWithTimeout('/api/users'),
-                fetchWithTimeout('/api/posts')
+                fetchWithTimeout(postsUrl)
             ]);
             const usersData = await usersRes.json();
             const postsData = await postsRes.json();
@@ -264,27 +394,39 @@ const initApp = () => {
             USERS_DATA = (usersData.success && usersData.users) ? usersData.users : usersData;
             USERS_DB   = USERS_DATA;
 
-            // 새 형식: { success: true, posts: [...] }
+            // 새 형식: { success: true, posts: [...], nextCursor }
+            POSTS_CONTENT = {};
             if (postsData.success && Array.isArray(postsData.posts)) {
-                POSTS_CONTENT = {};
-                postsData.posts.forEach(p => { POSTS_CONTENT[p.id] = p; });
+                feedPostIds = ingestPosts(postsData.posts);
+                feedCursor = postsData.nextCursor || null;
             } else {
                 POSTS_CONTENT = postsData; // 구형 오브젝트 형식 호환
+                feedPostIds = Object.keys(POSTS_CONTENT);
             }
+            if (!feedCursor) feedExhausted = true;
         } catch(e) {
             console.warn('백엔드 없음 → 오프라인 데이터 사용');
             USERS_DATA = { ...FALLBACK_USERS };
             USERS_DB   = USERS_DATA;
             POSTS_CONTENT = { ...FALLBACK_POSTS };
+            feedPostIds = Object.keys(POSTS_CONTENT);
+            feedExhausted = true;
         }
 
-        // localStorage 로컬 포스트 병합 (백엔드에 없는 것만)
+        // localStorage 로컬 포스트 병합 (백엔드에 없는 것만 — 피드 맨 앞)
+        const localIds = [];
         getLocalPosts().forEach(post => {
-            if (!POSTS_CONTENT[post.id]) POSTS_CONTENT[post.id] = post;
+            if (!POSTS_CONTENT[post.id]) {
+                POSTS_CONTENT[post.id] = post;
+                localIds.push(post.id);
+            }
         });
+        feedPostIds = [...localIds, ...feedPostIds];
 
         // 삭제된 포스트 필터링
-        getDeletedPosts().forEach(postId => { delete POSTS_CONTENT[postId]; });
+        const deleted = getDeletedPosts();
+        deleted.forEach(postId => { delete POSTS_CONTENT[postId]; });
+        feedPostIds = feedPostIds.filter(id => !deleted.has(id) && POSTS_CONTENT[id]);
 
         // Stories 행 업데이트 (실제 DB 유저 표시)
         const storiesRow = document.querySelector('.stories-row');
@@ -295,8 +437,8 @@ const initApp = () => {
                 item.className = 'story-item';
                 item.dataset.userId = id;
                 item.innerHTML = `
-                    <div class="story-avatar" style="background:${u.color || '#f5d000'};">${u.initial || (u.name || id).charAt(0).toUpperCase()}</div>
-                    <span>${u.name || id}</span>`;
+                    <div class="story-avatar" style="background:${escHtml(u.color || '#f5d000')};">${escHtml(u.initial || (u.name || id).charAt(0).toUpperCase())}</div>
+                    <span>${escHtml(u.name || id)}</span>`;
                 storiesRow.appendChild(item);
             });
         }
@@ -311,16 +453,27 @@ const initApp = () => {
         const banner = feedBody?.querySelector('.feed-banner');
         if (banner) {
             feedBody.querySelectorAll('.feed-post').forEach(el => el.remove());
-            let postIds = Object.keys(POSTS_CONTENT);
+            let postIds = feedPostIds.filter(id => POSTS_CONTENT[id]);
             if (currentFeedSort === 'popular') {
                 postIds = postIds.slice().sort((a, b) => getLikeCount(b) - getLikeCount(a));
             }
-            // latest: POSTS_CONTENT의 기존 순서(최신순) 유지
+            // latest: feedPostIds의 순서(최신순) 유지
             const htmls = postIds.map(buildPostCardHTML).filter(Boolean);
             if (htmls.length > 0) banner.insertAdjacentHTML('afterend', htmls.join(''));
         }
 
+        ensureFeedSentinel();
         initFeed();
+        updateFeedSentinel();
+    }
+
+    // 정렬 탭 전환 — Popular는 전체 로드 후 클라이언트 정렬
+    async function switchFeedSort(sort) {
+        currentFeedSort = sort;
+        if (sort === 'popular' && !feedExhausted) {
+            try { await loadAllPosts(); } catch (e) { console.warn('loadAllPosts failed', e); }
+        }
+        renderFeedCards();
     }
 
     // ── 캐러셀(다중 패널 스와이프) ─────────────────────
@@ -431,6 +584,7 @@ const initApp = () => {
         if (!confirm('Delete this post?')) return;
         // 메모리에서 제거
         delete POSTS_CONTENT[postId];
+        feedPostIds = feedPostIds.filter(id => id !== postId);
         // localStorage에서 제거
         persistDeletedPost(postId);
         const remaining = getLocalPosts().filter(p => p.id !== postId);
@@ -458,7 +612,7 @@ const initApp = () => {
                 const postUserEl = postCard.querySelector('.post-user');
                 if (postUserEl) {
                     postUserEl.insertAdjacentHTML('beforeend',
-                        `<button class="delete-post-btn" data-post-id="${postId}"
+                        `<button class="delete-post-btn" data-post-id="${escHtml(postId)}"
                             style="margin-left:auto;background:none;border:none;color:#bbb;cursor:pointer;font-size:18px;line-height:1;padding:0 4px;"
                             title="Delete post">🗑</button>`
                     );
@@ -495,11 +649,11 @@ const initApp = () => {
         }
         list.innerHTML = comments.map(c => `
             <div class="comment-item">
-                <div class="comment-avatar" style="${c.avatar ? `background-image: ${getAvatarSVG(c.avatar.gender, c.avatar.skin, c.avatar.hair)}; background-size: cover; background-position: center; border: 2px solid ${c.color};` : `background:${c.color}`}">${c.avatar ? '' : c.author.replace('@', '').charAt(0).toUpperCase()}</div>
+                <div class="comment-avatar" style="${c.avatar ? `background-image: ${getAvatarSVG(c.avatar.gender, c.avatar.skin, c.avatar.hair)}; background-size: cover; background-position: center; border: 2px solid ${escHtml(c.color)};` : `background:${escHtml(c.color)}`}">${c.avatar ? '' : escHtml(String(c.author || '').replace('@', '').charAt(0).toUpperCase())}</div>
                 <div class="comment-body">
-                    <p class="comment-author">${c.author}</p>
-                    <p class="comment-text">${c.text}</p>
-                    <p class="comment-time">${c.time}</p>
+                    <p class="comment-author">${escHtml(c.author)}</p>
+                    <p class="comment-text">${escHtml(c.text)}</p>
+                    <p class="comment-time">${escHtml(c.time)}</p>
                 </div>
             </div>
         `).join('');
@@ -511,12 +665,13 @@ const initApp = () => {
         const feedBody = document.querySelector('.feed-body');
         if (!feedBody) return;
 
-        const hasPosts = Object.keys(POSTS_CONTENT).length > 0;
+        const visibleIds = feedPostIds.filter(id => POSTS_CONTENT[id]);
+        const hasPosts = visibleIds.length > 0;
         const banner = feedBody.querySelector('.feed-banner');
 
-        // 포스트 카드가 DOM에 없지만 POSTS_CONTENT에 있으면 재주입
+        // 포스트 카드가 DOM에 없지만 feedPostIds에 있으면 재주입
         if (hasPosts && feedBody.querySelectorAll('.feed-post').length === 0 && banner) {
-            const htmls = Object.keys(POSTS_CONTENT).map(buildPostCardHTML).filter(Boolean);
+            const htmls = visibleIds.map(buildPostCardHTML).filter(Boolean);
             if (htmls.length > 0) banner.insertAdjacentHTML('afterend', htmls.join(''));
         }
 
@@ -608,7 +763,7 @@ const initApp = () => {
                 <div class="carousel-track">
                     ${urls.map((url, i) => `
                         <div class="carousel-slide">
-                            <img src="${url}" class="webtoon-feed-img" alt="panel ${i + 1}">
+                            <img src="${escHtml(url)}" class="webtoon-feed-img" alt="panel ${i + 1}" loading="lazy" decoding="async">
                         </div>
                     `).join('')}
                 </div>
@@ -631,46 +786,46 @@ const initApp = () => {
             bio: '', followers: 0, postIds: []
         };
         return `
-        <div class="feed-post" data-post-id="${postId}">
-            <div class="post-user" data-user-id="${content.authorId}" style="cursor:pointer;">
-                <div class="post-avatar" style="background:${author.color}">${author.initial}</div>
+        <div class="feed-post" data-post-id="${escHtml(postId)}">
+            <div class="post-user" data-user-id="${escHtml(content.authorId)}" style="cursor:pointer;">
+                <div class="post-avatar" style="background:${escHtml(author.color)}">${escHtml(author.initial)}</div>
                 <div>
-                    <p class="post-username">${author.handle}</p>
-                    <p class="post-time">${content.time}</p>
+                    <p class="post-username">${escHtml(author.handle)}</p>
+                    <p class="post-time">${escHtml(timeAgo(content.created_at || content.createdAt || content.time))}</p>
                 </div>
             </div>
-            <div class="post-images-container" data-webtoon-trigger="${postId}">
+            <div class="post-images-container" data-webtoon-trigger="${escHtml(postId)}">
                 ${(content.imageUrls && content.imageUrls.length > 1)
                   ? buildCarouselHTML(content.imageUrls)
                   : (content.imageUrls && content.imageUrls.length > 0)
-                  ? `<img src="${content.imageUrls[0]}" class="webtoon-feed-img" />`
-                  : `<div class="post-image ${content.imageClass}" ${content.imageUrl ? `style="background-image: url(${content.imageUrl});"` : ''}>
+                  ? `<img src="${escHtml(content.imageUrls[0])}" class="webtoon-feed-img" loading="lazy" decoding="async" />`
+                  : `<div class="post-image ${escHtml(content.imageClass)}" ${content.imageUrl ? `style="background-image: url(&quot;${escHtml(content.imageUrl)}&quot;);"` : ''}>
                         <div class="post-image-inner">
-                            <p class="comic-label">${content.label || ''}</p>
-                            <p class="comic-scene">${content.scene || ''}</p>
+                            <p class="comic-label">${escHtml(content.label)}</p>
+                            <p class="comic-scene">${escHtml(content.scene)}</p>
                         </div>
                      </div>`
                 }
             </div>
-            <p class="post-title" style="margin-top: 1rem;">${content.title}</p>
-            <p class="post-desc">${author.handle} · ${content.desc}</p>
+            <p class="post-title" style="margin-top: 1rem;">${escHtml(content.title)}</p>
+            <p class="post-desc">${escHtml(author.handle)} · ${escHtml(content.desc)}</p>
             <div class="post-actions">
-                <button class="action-btn like-btn" data-post-id="${postId}">
-                    <span class="like-icon">🤍</span><span class="like-count">${content.baseLikes || 0}</span>
+                <button class="action-btn like-btn" data-post-id="${escHtml(postId)}">
+                    <span class="like-icon">🤍</span><span class="like-count">${Number(content.baseLikes) || 0}</span>
                 </button>
-                <button class="action-btn comment-toggle-btn" data-post-id="${postId}">
+                <button class="action-btn comment-toggle-btn" data-post-id="${escHtml(postId)}">
                     💬 <span class="comment-count">${content.comments ? content.comments.length : 0}</span>
                 </button>
                 <button class="action-btn">↗ Share</button>
                 ${(loggedInUser !== 'Guest' && loggedInUser.toLowerCase() === content.authorId.toLowerCase()) ? `
-                <button class="action-btn delete-post-btn" data-post-id="${postId}" style="color: #ff4444; margin-left: auto;">🗑️</button>
+                <button class="action-btn delete-post-btn" data-post-id="${escHtml(postId)}" style="color: #ff4444; margin-left: auto;">🗑️</button>
                 ` : ''}
             </div>
-            <div class="comment-section" id="comments-${postId}">
-                <div class="comment-list" id="comment-list-${postId}"></div>
+            <div class="comment-section" id="comments-${escHtml(postId)}">
+                <div class="comment-list" id="comment-list-${escHtml(postId)}"></div>
                 <div class="comment-input-row">
-                    <input class="comment-input" type="text" placeholder="Add a comment..." data-post-id="${postId}">
-                    <button class="comment-submit" data-post-id="${postId}">Post</button>
+                    <input class="comment-input" type="text" placeholder="Add a comment..." data-post-id="${escHtml(postId)}">
+                    <button class="comment-submit" data-post-id="${escHtml(postId)}">Post</button>
                 </div>
             </div>
         </div>`;
@@ -714,8 +869,8 @@ const initApp = () => {
             placeholder.style.padding = '1rem';
             placeholder.innerHTML = `
                 <div class="post-image-inner" style="color:white;">
-                    <p class="comic-label" style="font-size: 0.8rem; font-weight: bold; margin-bottom:0.5rem; opacity:0.8">${content.label}</p>
-                    <p class="comic-scene" style="font-size: 1rem; font-style: italic;">${content.scene}</p>
+                    <p class="comic-label" style="font-size: 0.8rem; font-weight: bold; margin-bottom:0.5rem; opacity:0.8">${escHtml(content.label)}</p>
+                    <p class="comic-scene" style="font-size: 1rem; font-style: italic;">${escHtml(content.scene)}</p>
                 </div>
             `;
             imgWrap.appendChild(placeholder);
@@ -769,9 +924,23 @@ const initApp = () => {
         if (user.postIds.length === 0) {
             list.innerHTML = '<div class="up-empty">No comics posted yet.</div>';
         } else {
-            list.innerHTML = user.postIds.map(buildPostCardHTML).join('');
-            // 렌더된 포스트 좋아요 상태 반영
-            user.postIds.forEach(pid => renderFeedPost(pid));
+            const renderList = () => {
+                list.innerHTML = user.postIds.map(buildPostCardHTML).join('');
+                // 렌더된 포스트 좋아요 상태 반영
+                user.postIds.forEach(pid => renderFeedPost(pid));
+            };
+            renderList();
+            // 피드가 페이지 단위로 로드되므로 아직 받지 않은 이 작가의 포스트는 따로 가져온다
+            if (user.postIds.some(pid => !POSTS_CONTENT[pid])) {
+                fetchWithTimeout(`/api/posts?author=${encodeURIComponent(userId.toLowerCase())}`)
+                    .then(res => res.json())
+                    .then(data => {
+                        if (!data.success || !Array.isArray(data.posts)) return;
+                        ingestPosts(data.posts);
+                        renderList();
+                    })
+                    .catch(e => console.warn('author posts fetch failed', e));
+            }
         }
 
         // 화면 전환
@@ -1024,9 +1193,8 @@ const initApp = () => {
         // 피드 정렬 탭 (Latest / Popular)
         const sortTab = e.target.closest('.sort-tab');
         if (sortTab && sortTab.dataset.sort) {
-            currentFeedSort = sortTab.dataset.sort;
             document.querySelectorAll('.sort-tab').forEach(b => b.classList.toggle('active', b === sortTab));
-            renderFeedCards();
+            switchFeedSort(sortTab.dataset.sort);
             return;
         }
 
@@ -1143,6 +1311,7 @@ const initApp = () => {
 
             // 메모리에서 제거
             delete POSTS_CONTENT[postId];
+            feedPostIds = feedPostIds.filter(id => id !== postId);
 
             // 유저 postIds 배열에서도 제거
             const ukey = loggedInUser.toLowerCase();
@@ -2251,6 +2420,7 @@ const initApp = () => {
                 imageUrls: compressedImages,
                 imageClass: 'custom-upload',
                 time: new Date().toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }),
+                createdAt: new Date().toISOString(),
                 baseLikes: 0, likes: {}, comments: [],
                 bubbles: bubbles,
             };

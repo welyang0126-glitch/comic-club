@@ -195,16 +195,63 @@ app.get('/api/users', async (req, res) => {
     }
 });
 
+// 커서 기반 페이지네이션
+//   ?limit=10            → 최신 10개 + nextCursor (limit 생략 시 전체 반환 — Popular 탭용)
+//   ?before=<nextCursor> → 해당 커서 이후(더 오래된) 포스트
+//   ?author=<userId>     → 특정 작가 포스트만
+// 커서는 불투명 문자열: Postgres는 "created_at|id"(마이크로초까지 보존, 동시각 tie-break), 로컬은 post id
 app.get('/api/posts', async (req, res) => {
     try {
+        const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 0, 0), 50);
+        const before = req.query.before ? String(req.query.before) : null;
+        const author = req.query.author ? String(req.query.author).toLowerCase() : null;
+
         let posts = [];
+        let nextCursor = null;
         if (pool) {
-            const result = await pool.query('SELECT id, data, created_at FROM posts ORDER BY created_at DESC');
-            posts = result.rows.map(r => ({ ...r.data, id: r.id }));
+            const where = [];
+            const params = [];
+            if (author) {
+                params.push(author);
+                where.push(`LOWER(data->>'authorId') = $${params.length}`);
+            }
+            if (before) {
+                const sep = before.indexOf('|');
+                if (sep > 0) {
+                    params.push(before.slice(0, sep), before.slice(sep + 1));
+                    where.push(`(created_at, id) < ($${params.length - 1}::timestamp, $${params.length})`);
+                }
+            }
+            let query = 'SELECT id, data, created_at, created_at::text AS cursor_ts FROM posts';
+            if (where.length) query += ' WHERE ' + where.join(' AND ');
+            query += ' ORDER BY created_at DESC, id DESC';
+            if (limit) {
+                params.push(limit + 1); // 1개 더 조회해서 다음 페이지 존재 여부 판단
+                query += ` LIMIT $${params.length}`;
+            }
+            const result = await pool.query(query, params);
+            let rows = result.rows;
+            if (limit && rows.length > limit) {
+                rows = rows.slice(0, limit);
+                const last = rows[rows.length - 1];
+                nextCursor = `${last.cursor_ts}|${last.id}`;
+            }
+            posts = rows.map(r => ({ ...r.data, id: r.id, created_at: r.created_at }));
         } else {
-            posts = Object.values(localPosts);
+            // 로컬 JSON은 삽입 순서 = 오래된 순이므로 뒤집어서 최신순으로
+            let list = Object.values(localPosts).reverse();
+            if (author) list = list.filter(p => (p.authorId || '').toLowerCase() === author);
+            if (before) {
+                const idx = list.findIndex(p => p.id === before);
+                if (idx >= 0) list = list.slice(idx + 1);
+            }
+            if (limit && list.length > limit) {
+                list = list.slice(0, limit);
+                nextCursor = list[list.length - 1].id;
+            }
+            posts = list;
         }
-        res.json({ success: true, posts });
+        res.json({ success: true, posts, nextCursor });
     } catch (err) {
         res.status(500).json({ success: false, error: err.message });
     }
@@ -235,6 +282,7 @@ app.post('/api/posts', async (req, res) => {
             id: newPostId,
             authorId: authorKey,
             time: body.time || 'Just now',
+            createdAt: body.createdAt || new Date().toISOString(),
             baseLikes: body.baseLikes || 0,
             likes: body.likes || {},
             comments: body.comments || []

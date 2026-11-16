@@ -2712,3 +2712,12 @@ body {
 @keyframes spin {
     100% { transform: rotate(360deg); }
 }
+/* 피드 무한스크롤 sentinel */
+.feed-sentinel {
+    min-height: 1px;
+    padding: 16px 0 24px;
+    text-align: center;
+    font-size: 13px;
+    font-weight: 700;
+    color: #aaa;
+}
