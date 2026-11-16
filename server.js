@@ -209,6 +209,8 @@ app.get('/api/posts', async (req, res) => {
         let posts = [];
         let nextCursor = null;
         if (pool) {
+            // created_at이 NULL인 예전 행도 빠지지 않도록 epoch로 취급 (정렬·커서·비교 모두 같은 식 사용)
+            const TS = "COALESCE(created_at, 'epoch'::timestamp)";
             const where = [];
             const params = [];
             if (author) {
@@ -219,12 +221,12 @@ app.get('/api/posts', async (req, res) => {
                 const sep = before.indexOf('|');
                 if (sep > 0) {
                     params.push(before.slice(0, sep), before.slice(sep + 1));
-                    where.push(`(created_at, id) < ($${params.length - 1}::timestamp, $${params.length})`);
+                    where.push(`(${TS}, id) < ($${params.length - 1}::timestamp, $${params.length})`);
                 }
             }
-            let query = 'SELECT id, data, created_at, created_at::text AS cursor_ts FROM posts';
+            let query = `SELECT id, data, created_at, ${TS}::text AS cursor_ts FROM posts`;
             if (where.length) query += ' WHERE ' + where.join(' AND ');
-            query += ' ORDER BY created_at DESC, id DESC';
+            query += ` ORDER BY ${TS} DESC, id DESC`;
             if (limit) {
                 params.push(limit + 1); // 1개 더 조회해서 다음 페이지 존재 여부 판단
                 query += ` LIMIT $${params.length}`;
