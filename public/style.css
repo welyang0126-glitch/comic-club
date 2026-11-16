@@ -2721,3 +2721,54 @@ body {
     font-weight: 700;
     color: #aaa;
 }
+
+/* 비밀번호 변경 (프로필 하단) */
+.change-pwd-form {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.cp-input {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 0.75rem 0.9rem;
+    border: 2px solid #e5e5e5;
+    border-radius: 12px;
+    font-family: 'Outfit', sans-serif;
+    font-size: 0.9rem;
+    background: #fff;
+}
+
+.cp-input:focus {
+    outline: none;
+    border-color: #ffcc00;
+}
+
+.cp-msg {
+    min-height: 1em;
+    margin: 0;
+    font-size: 0.8rem;
+    font-weight: 700;
+}
+
+.cp-msg.error { color: #e74c3c; }
+.cp-msg.success { color: #00b894; }
+
+.cp-submit-btn {
+    width: 100%;
+    padding: 0.8rem;
+    background: #1a1a1a;
+    color: #fff;
+    font-family: 'Outfit', sans-serif;
+    font-size: 0.9rem;
+    font-weight: 800;
+    border: none;
+    border-radius: 12px;
+    cursor: pointer;
+}
+
+.cp-submit-btn:disabled {
+    opacity: 0.5;
+    cursor: default;
+}

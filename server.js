@@ -208,6 +208,34 @@ app.post('/api/auth/signup', async (req, res) => {
     }
 });
 
+// 비밀번호 변경 — 현재 비밀번호를 bcrypt로 검증한 뒤 새 해시 저장
+const MIN_PASSWORD_LENGTH = 6;
+app.post('/api/auth/change-password', async (req, res) => {
+    try {
+        const { id, currentPassword, newPassword } = req.body || {};
+        if (typeof id !== 'string' || typeof currentPassword !== 'string' || typeof newPassword !== 'string') {
+            return res.status(400).json({ success: false, message: 'Missing fields' });
+        }
+        if (newPassword.length < MIN_PASSWORD_LENGTH) {
+            return res.status(400).json({ success: false, message: `New password must be at least ${MIN_PASSWORD_LENGTH} characters.` });
+        }
+        const key = id.toLowerCase();
+        const user = pool
+            ? (await pool.query('SELECT data FROM users WHERE id = $1', [key])).rows[0]?.data
+            : localUsers[key];
+        const { ok } = await verifyPassword(user, currentPassword);
+        if (!ok) return res.status(403).json({ success: false, message: 'Current password is incorrect.' });
+
+        user.pwd = await hashPassword(newPassword);
+        if (pool) await pool.query('UPDATE users SET data = $1 WHERE id = $2', [user, key]);
+        else saveLocalJSON(path.join(DATA_DIR, 'users.json'), localUsers);
+        res.json({ success: true });
+    } catch (err) {
+        console.error('POST /api/auth/change-password error:', err);
+        res.status(500).json({ success: false, message: 'Could not change password.' });
+    }
+});
+
 app.get('/api/auth/check', async (req, res) => {
     const id = (req.query.id || '').toLowerCase();
     if (!id) return res.json({ exists: false });

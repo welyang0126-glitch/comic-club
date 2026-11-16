@@ -1460,6 +1460,47 @@ const initApp = () => {
         exitGuestMode();
     }
 
+    // ── 비밀번호 변경 (프로필 하단) ─────────────────────────
+    const changePwdForm = document.getElementById('change-pwd-form');
+    if (changePwdForm) {
+        changePwdForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const msg = document.getElementById('cp-msg');
+            const btn = document.getElementById('cp-submit-btn');
+            const setMsg = (text, type) => { msg.textContent = text; msg.className = 'cp-msg ' + type; };
+
+            const currentPassword = document.getElementById('cp-current').value;
+            const newPassword = document.getElementById('cp-new').value;
+            const confirmPassword = document.getElementById('cp-confirm').value;
+
+            if (loggedInUser === 'Guest') return setMsg('Please sign in first.', 'error');
+            if (newPassword.length < 6) return setMsg('New password must be at least 6 characters.', 'error');
+            if (newPassword !== confirmPassword) return setMsg('New passwords do not match.', 'error');
+            if (newPassword === currentPassword) return setMsg('New password must be different.', 'error');
+
+            btn.disabled = true;
+            try {
+                const res = await fetchWithTimeout('/api/auth/change-password', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ id: loggedInUser, currentPassword, newPassword })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    changePwdForm.reset();
+                    setMsg('Password changed.', 'success');
+                } else {
+                    setMsg(data.message || 'Could not change password.', 'error');
+                }
+            } catch (err) {
+                console.error('비밀번호 변경 실패', err);
+                setMsg('Could not reach the server. Please try again.', 'error');
+            } finally {
+                btn.disabled = false;
+            }
+        });
+    }
+
     // ── 게스트 모드 ──────────────────────────────────────────
     // 로그인 없이 Feed / Shop 만 둘러보는 모드. Upload / Profile / 좋아요 / 댓글은 차단.
     function isGuestMode() {
@@ -1574,13 +1615,6 @@ const initApp = () => {
     const signupId = document.getElementById('signup-id');
 
     let isIdChecked = false;
-    // 유저 데이터베이스 (MOCK)
-    USERS_DB = {
-        'kevin': { id: 'Kevin', pwd: 'acccng', name: 'Kevin' },
-        'admin': { id: 'admin', pwd: 'admin', name: 'Admin User' },
-        'test': { id: 'test', pwd: 'test', name: 'Test User' },
-        'comic': { id: 'comic', pwd: '1234', name: 'Comic Master' }
-    };
 
     function toggleAuthMode(toSignup) {
         if (toSignup) {
@@ -1698,30 +1732,9 @@ const initApp = () => {
                 alert('아이디가 존재하지 않거나 비밀번호가 일치하지 않습니다.');
             }
         } catch(e) {
-            // 백엔드 없을 때: USERS_DB 로컬 자격증명으로 오프라인 로그인
-            const idLower = id.toLowerCase();
-            const localUser = USERS_DB[idLower];
-            if (localUser && localUser.pwd === pwd) {
-                exitGuestMode();
-                loginModal.classList.add('hidden');
-                loginForm.reset();
-                loggedInUser = idLower;
-                // USERS_DATA에 없으면 동적 추가
-                if (!USERS_DATA[idLower]) {
-                    USERS_DATA[idLower] = {
-                        name: localUser.name, handle: '@' + idLower,
-                        color: '#7bc8e0', initial: localUser.name.charAt(0).toUpperCase(),
-                        bio: '', followers: 0, postIds: []
-                    };
-                }
-                const color = USERS_DATA[idLower].color;
-                const initial = USERS_DATA[idLower].initial;
-                updateAllAvatarBtns(initial, color);
-                document.querySelector('main.hero-section')?.style && (document.querySelector('main.hero-section').style.display = 'none');
-                showScreen('feed');
-            } else {
-                alert('ID 또는 비밀번호가 올바르지 않습니다.');
-            }
+            // 서버 연결 실패 — 오프라인 로그인은 지원하지 않는다 (클라이언트에 자격증명을 두지 않기 위함)
+            console.error('로그인 요청 실패', e);
+            alert('서버에 연결할 수 없습니다. 잠시 후 다시 시도해주세요.');
         }
     });
 

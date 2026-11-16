@@ -626,6 +626,16 @@
 
                 <button class="apply-style-btn" id="apply-style-btn">✓ Apply Style</button>
 
+                <!-- CHANGE PASSWORD -->
+                <p class="pf-section-label">CHANGE PASSWORD</p>
+                <form class="change-pwd-form" id="change-pwd-form">
+                    <input type="password" id="cp-current" class="cp-input" placeholder="Current password" autocomplete="current-password" required>
+                    <input type="password" id="cp-new" class="cp-input" placeholder="New password (6+ characters)" autocomplete="new-password" minlength="6" required>
+                    <input type="password" id="cp-confirm" class="cp-input" placeholder="Confirm new password" autocomplete="new-password" minlength="6" required>
+                    <p class="cp-msg" id="cp-msg" role="status"></p>
+                    <button type="submit" class="cp-submit-btn" id="cp-submit-btn">🔒 Change Password</button>
+                </form>
+
                 <button class="logout-btn" id="logout-btn">⇤ Logout</button>
                 <button class="delete-btn">🗑 Delete Account</button>
             </div>
