@@ -453,8 +453,8 @@ app.post('/api/users/:id/update', async (req, res) => {
     }
 });
 
-// 프론트엔드 정적 파일 서빙
-app.use(express.static(__dirname));
+// 프론트엔드 정적 파일 서빙 — public/ 만 공개 (server.js, data/, package.json 등 노출 방지)
+app.use(express.static(path.join(__dirname, 'public')));
 
 const server = app.listen(PORT, () => {
     console.log(`Server running on http://localhost:${PORT}`);
