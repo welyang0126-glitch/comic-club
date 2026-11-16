@@ -4,6 +4,7 @@ const fs = require('fs');
 const path = require('path');
 const { Pool } = require('pg');
 const bcrypt = require('bcryptjs');
+const images = require('./lib/images');
 
 const app = express();
 app.use(cors());
@@ -96,6 +97,9 @@ async function initDB() {
             await pool.query("INSERT INTO posts (id, data) VALUES ($1, $2)", ['post-1', post1]);
             await pool.query("INSERT INTO posts (id, data) VALUES ($1, $2)", ['post-2', post2]);
         }
+
+        // 포스트 이미지 테이블 생성 + 기존 base64 이미지 이전 (백업 테이블 생성 후 진행, 재실행 안전)
+        await images.migratePgImages(pool);
     } catch (err) {
         console.error("DB Initialization Error:", err);
     }
@@ -116,6 +120,22 @@ const saveLocalJSON = (file, data) => fs.writeFileSync(file, JSON.stringify(data
 
 let localUsers = readLocalJSON(path.join(DATA_DIR, 'users.json'), {});
 let localPosts = readLocalJSON(path.join(DATA_DIR, 'posts.json'), {});
+
+// 로컬 모드 이미지 저장 폴더 + 기존 base64 이미지 이전
+const IMAGES_DIR = path.join(DATA_DIR, 'images');
+(async () => {
+    if (pool) return;
+    let migrated = 0;
+    for (const [id, post] of Object.entries(localPosts)) {
+        if (!images.hasInlineImages(post)) continue;
+        await images.externalizeImages(id, post, images.localSaver(IMAGES_DIR, id));
+        migrated++;
+    }
+    if (migrated) {
+        saveLocalJSON(path.join(DATA_DIR, 'posts.json'), localPosts);
+        console.log(`[images] ${migrated} local post(s) migrated`);
+    }
+})().catch(err => console.error('[images] local migration failed', err));
 
 // ── API 엔드포인트 ────────────────────────────────────────────
 
@@ -331,6 +351,10 @@ app.post('/api/posts', async (req, res) => {
             comments: body.comments || []
         };
 
+        // base64 이미지는 별도 저장하고 포스트에는 URL만 남긴다
+        await images.externalizeImages(newPostId, postData,
+            pool ? images.pgSaver(pool, newPostId) : images.localSaver(IMAGES_DIR, newPostId));
+
         if (pool) {
             await pool.query(
                 'INSERT INTO posts (id, data) VALUES ($1, $2) ON CONFLICT (id) DO UPDATE SET data = $2',
@@ -356,6 +380,24 @@ app.post('/api/posts', async (req, res) => {
     } catch (err) {
         console.error('POST /api/posts error:', err);
         res.status(500).json({ success: false, error: err.message });
+    }
+});
+
+// 포스트 이미지 바이너리 — URL에 내용 해시(?v=)가 붙어 있어 1년 캐시
+app.get('/api/posts/:id/images/:n', async (req, res) => {
+    try {
+        const idx = Number(req.params.n);
+        if (!Number.isInteger(idx) || idx < 0) return res.status(404).end();
+        const img = pool
+            ? await images.pgGetImage(pool, req.params.id, idx)
+            : images.localGetImage(IMAGES_DIR, req.params.id, idx);
+        if (!img) return res.status(404).end();
+        res.set('Cache-Control', 'public, max-age=31536000');
+        res.set('X-Content-Type-Options', 'nosniff');
+        res.type(img.mime).send(Buffer.from(img.data));
+    } catch (err) {
+        console.error('GET image error:', err);
+        res.status(500).end();
     }
 });
 
@@ -454,6 +496,7 @@ app.delete('/api/posts/:id', async (req, res) => {
         if (post.authorId.toLowerCase() !== userId) return res.status(403).json({ error: 'Unauthorized to delete this post' });
 
         await pool.query('DELETE FROM posts WHERE id = $1', [postId]);
+        await images.pgDeleteImages(pool, postId);
 
         const userRes = await pool.query('SELECT data FROM users WHERE id = $1', [userId]);
         if (userRes.rows.length > 0) {
@@ -469,6 +512,7 @@ app.delete('/api/posts/:id', async (req, res) => {
 
         delete localPosts[postId];
         saveLocalJSON(path.join(DATA_DIR, 'posts.json'), localPosts);
+        images.localDeleteImages(IMAGES_DIR, postId);
 
         if (localUsers[userId]) {
             localUsers[userId].postIds = localUsers[userId].postIds.filter(id => id !== postId);
