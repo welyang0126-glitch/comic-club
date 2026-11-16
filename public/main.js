@@ -2440,10 +2440,10 @@ const initApp = () => {
                 };
             }
 
-            // 이미지 압축 (base64 용량 축소 — 서버에 별도 이미지 업로드 엔드포인트가 없어
-            // 모든 패널은 base64로 저장되므로, 전송/저장 용량을 줄이는 것이 중요하다)
+            // 이미지 압축 (모든 패널: 가로 최대 1200px, JPEG 0.8) — 업로드는 base64로 전송되고
+            // 서버가 별도 저장한 뒤 URL로 바꾸므로, 전송량과 저장 용량을 줄이는 것이 중요하다
             const compressedImages = await Promise.all(
-                uploadedImages.map(dataUrl => compressImage(dataUrl, 1000, 0.75))
+                uploadedImages.map(dataUrl => compressImage(dataUrl, 1200, 0.8))
             );
 
             if (publishBtn) publishBtn.textContent = '📝 Publishing...';
